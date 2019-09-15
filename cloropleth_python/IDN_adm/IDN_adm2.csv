@@ -1,0 +1,448 @@
+"OBJECTID","ID_0","ISO","NAME_0","ID_1","NAME_1","ID_2","NAME_2","TYPE_2","ENGTYPE_2","NL_NAME_2","VARNAME_2"
+1,106,"IDN","Indonesia",1,"Aceh",1,"Aceh Barat Daya","Kabupaten","Regency",NA,"South West Aceh"
+2,106,"IDN","Indonesia",1,"Aceh",2,"Aceh Barat","Kabupaten","Regency",NA,"West Aceh"
+3,106,"IDN","Indonesia",1,"Aceh",3,"Aceh Besar","Kabupaten","Regency",NA,NA
+4,106,"IDN","Indonesia",1,"Aceh",4,"Aceh Jaya","Kabupaten","Regency",NA,NA
+5,106,"IDN","Indonesia",1,"Aceh",5,"Aceh Selatan","Kabupaten","Regency",NA,"South Aceh"
+6,106,"IDN","Indonesia",1,"Aceh",6,"Aceh Singkil","Kabupaten","Regency",NA,NA
+7,106,"IDN","Indonesia",1,"Aceh",7,"Aceh Tamiang","Kabupaten","Regency",NA,NA
+8,106,"IDN","Indonesia",1,"Aceh",8,"Aceh Tengah","Kabupaten","Regency",NA,"Central Aceh"
+9,106,"IDN","Indonesia",1,"Aceh",9,"Aceh Tenggara","Kabupaten","Regency",NA,"Southeast Aceh"
+10,106,"IDN","Indonesia",1,"Aceh",10,"Aceh Timur","Kabupaten","Regency",NA,"East Aceh"
+11,106,"IDN","Indonesia",1,"Aceh",11,"Aceh Utara","Kabupaten","Regency",NA,"North Aceh"
+12,106,"IDN","Indonesia",1,"Aceh",12,"Banda Aceh","Kotamadya","Municipality",NA,"Kota Banda Aceh"
+13,106,"IDN","Indonesia",1,"Aceh",13,"Bener Meriah","Kabupaten","Regency",NA,NA
+14,106,"IDN","Indonesia",1,"Aceh",14,"Bireuen","Kabupaten","Regency",NA,"Bireun"
+15,106,"IDN","Indonesia",1,"Aceh",15,"Gayo Lues","Kabupaten","Regency",NA,NA
+16,106,"IDN","Indonesia",1,"Aceh",16,"Langsa","Kotamadya","Municipality",NA,"Kota Langsa"
+17,106,"IDN","Indonesia",1,"Aceh",17,"Lhokseumawe","Kotamadya","Municipality",NA,"Kota Lhokseumawe"
+18,106,"IDN","Indonesia",1,"Aceh",18,"Nagan Raya","Kabupaten","Regency",NA,NA
+19,106,"IDN","Indonesia",1,"Aceh",19,"Pidie","Kabupaten","Regency",NA,NA
+20,106,"IDN","Indonesia",1,"Aceh",20,"Sabang","Kotamadya","Municipality",NA,"Kota Sabang"
+21,106,"IDN","Indonesia",1,"Aceh",21,"Simeulue","Kabupaten","Regency",NA,NA
+22,106,"IDN","Indonesia",2,"Bali",22,"Badung","Kabupaten","Regency",NA,NA
+23,106,"IDN","Indonesia",2,"Bali",23,"Bangli","Kabupaten","Regency",NA,NA
+24,106,"IDN","Indonesia",2,"Bali",24,"Buleleng","Kabupaten","Regency",NA,NA
+25,106,"IDN","Indonesia",2,"Bali",25,"Denpasar","Kotamadya","Municipality",NA,"Kota Denpasar"
+26,106,"IDN","Indonesia",2,"Bali",26,"Gianyar","Kabupaten","Regency",NA,NA
+27,106,"IDN","Indonesia",2,"Bali",27,"Jembrana","Kabupaten","Regency",NA,NA
+28,106,"IDN","Indonesia",2,"Bali",28,"Karang Asem","Kabupaten","Regency",NA,"Karangasem"
+29,106,"IDN","Indonesia",2,"Bali",29,"Klungkung","Kabupaten","Regency",NA,NA
+30,106,"IDN","Indonesia",2,"Bali",30,"Tabanan","Kabupaten","Regency",NA,NA
+31,106,"IDN","Indonesia",3,"Bangka-Belitung",31,"Bangka Barat","Kabupaten","Regency",NA,"Belitung"
+32,106,"IDN","Indonesia",3,"Bangka-Belitung",32,"Bangka Selatan","Kabupaten","Regency",NA,"South Bangka"
+33,106,"IDN","Indonesia",3,"Bangka-Belitung",33,"Bangka Tengah","Kabupaten","Regency",NA,"Central Bangka"
+34,106,"IDN","Indonesia",3,"Bangka-Belitung",34,"Bangka","Kabupaten","Regency",NA,NA
+35,106,"IDN","Indonesia",3,"Bangka-Belitung",35,"Belitung Timur","Kabupaten","Regency",NA,"East Belitung"
+36,106,"IDN","Indonesia",3,"Bangka-Belitung",36,"Belitung","Kabupaten","Regency",NA,NA
+37,106,"IDN","Indonesia",3,"Bangka-Belitung",37,"Pangkal Pinang","Kotamadya","Municipality",NA,"Kota Pangkal Pinang|Pangkal Pingang"
+38,106,"IDN","Indonesia",4,"Banten",38,"Cilegon","Kotamadya","Municipality",NA,"Kota Cilegon"
+39,106,"IDN","Indonesia",4,"Banten",39,"Kota Tangerang","Kotamadya","Municipality",NA,NA
+40,106,"IDN","Indonesia",4,"Banten",40,"Lebak","Kabupaten","Regency",NA,NA
+41,106,"IDN","Indonesia",4,"Banten",41,"Pandeglang","Kabupaten","Regency",NA,NA
+42,106,"IDN","Indonesia",4,"Banten",42,"Serang","Kabupaten","Regency",NA,NA
+43,106,"IDN","Indonesia",4,"Banten",43,"Tangerang","Kabupaten","Regency",NA,NA
+44,106,"IDN","Indonesia",5,"Bengkulu",44,"Bengkulu Selatan","Kabupaten","Regency",NA,"South Bengkulu"
+45,106,"IDN","Indonesia",5,"Bengkulu",45,"Bengkulu Utara","Kabupaten","Regency",NA,"North Bengkulu"
+46,106,"IDN","Indonesia",5,"Bengkulu",46,"Bengkulu","Kotamadya","Municipality",NA,"Kota Bengkulu"
+47,106,"IDN","Indonesia",5,"Bengkulu",47,"Kaur","Kabupaten","Regency",NA,NA
+48,106,"IDN","Indonesia",5,"Bengkulu",48,"Kepahiang","Kabupaten","Regency",NA,NA
+49,106,"IDN","Indonesia",5,"Bengkulu",49,"Lebong","Kabupaten","Regency",NA,NA
+50,106,"IDN","Indonesia",5,"Bengkulu",50,"Mukomuko","Kabupaten","Regency",NA,"Muko Muko"
+51,106,"IDN","Indonesia",5,"Bengkulu",51,"Rejang Lebong","Kabupaten","Regency",NA,NA
+52,106,"IDN","Indonesia",5,"Bengkulu",52,"Seluma","Kabupaten","Regency",NA,NA
+53,106,"IDN","Indonesia",6,"Gorontalo",53,"Boalemo","Kabupaten","Regency",NA,NA
+54,106,"IDN","Indonesia",6,"Gorontalo",54,"Bone Bolango","Kabupaten","Regency",NA,NA
+55,106,"IDN","Indonesia",6,"Gorontalo",55,"Gorontalo","City","City",NA,NA
+56,106,"IDN","Indonesia",6,"Gorontalo",56,"Gorontalo","Kabupaten","Regency",NA,NA
+57,106,"IDN","Indonesia",6,"Gorontalo",57,"Pohuwato","Kabupaten","Regency",NA,NA
+58,106,"IDN","Indonesia",7,"Irian Jaya Barat",58,"Fak-Fak","Kabupaten","Regency",NA,NA
+59,106,"IDN","Indonesia",7,"Irian Jaya Barat",59,"Kaimana","Kabupaten","Regency",NA,NA
+60,106,"IDN","Indonesia",7,"Irian Jaya Barat",60,"Kota Sorong","Kotamadya","Municipality",NA,"Sorong"
+61,106,"IDN","Indonesia",7,"Irian Jaya Barat",61,"Manokwari","Kabupaten","Regency",NA,NA
+62,106,"IDN","Indonesia",7,"Irian Jaya Barat",62,"Raja Ampat","Kabupaten","Regency",NA,NA
+63,106,"IDN","Indonesia",7,"Irian Jaya Barat",63,"Sorong Selatan","Kotamadya","Municipality",NA,NA
+64,106,"IDN","Indonesia",7,"Irian Jaya Barat",64,"Sorong","Kotamadya","Municipality",NA,NA
+65,106,"IDN","Indonesia",7,"Irian Jaya Barat",65,"Teluk Bintuni","Kabupaten","Regency",NA,NA
+66,106,"IDN","Indonesia",7,"Irian Jaya Barat",66,"Teluk Wondama","Kabupaten","Regency",NA,NA
+67,106,"IDN","Indonesia",8,"Jakarta Raya",67,"Admin. Kepulauan Seribu","Kabupaten","Regency",NA,"Kepulauan Seribu"
+68,106,"IDN","Indonesia",8,"Jakarta Raya",68,"Jakarta Barat","Kotamadya","Municipality",NA,"Kota Jakarta Barat| West Jakarta"
+69,106,"IDN","Indonesia",8,"Jakarta Raya",69,"Jakarta Pusat","Kotamadya","Municipality",NA,"Kota Jakarta Pusat| Central Jakarta"
+70,106,"IDN","Indonesia",8,"Jakarta Raya",70,"Jakarta Selatan","Kotamadya","Municipality",NA,"Kota Jakarta Selatan| South Jakarta"
+71,106,"IDN","Indonesia",8,"Jakarta Raya",71,"Jakarta Timur","Kotamadya","Municipality",NA,"Kota Jakarta Timur| East Jakarta"
+72,106,"IDN","Indonesia",8,"Jakarta Raya",72,"Jakarta Utara","Kotamadya","Municipality",NA,"Kota Jakarta Utara| North Jakarta"
+73,106,"IDN","Indonesia",9,"Jambi",73,"Batang Hari","Kabupaten","Regency",NA,"Batanghari"
+74,106,"IDN","Indonesia",9,"Jambi",74,"Bungo","Kabupaten","Regency",NA,"Bungo Tebo"
+75,106,"IDN","Indonesia",9,"Jambi",75,"Jambi","Kotamadya","Municipality",NA,"Kota Jambi"
+76,106,"IDN","Indonesia",9,"Jambi",76,"Kerinci","Kabupaten","Regency",NA,NA
+77,106,"IDN","Indonesia",9,"Jambi",77,"Merangin","Kabupaten","Regency",NA,"Sarolangon Bangko|Sarolangun Bangko"
+78,106,"IDN","Indonesia",9,"Jambi",78,"Muaro Jambi","Kabupaten","Regency",NA,"Muara Jambi"
+79,106,"IDN","Indonesia",9,"Jambi",79,"Sarolangun","Kabupaten","Regency",NA,NA
+80,106,"IDN","Indonesia",9,"Jambi",80,"Tanjung Jabung Barat","Kabupaten","Regency",NA,"Tanjung Jabung|West Tanjung Jabung"
+81,106,"IDN","Indonesia",9,"Jambi",81,"Tanjung Jabung Timur","Kabupaten","Regency",NA,"West Tanjung Jabung"
+82,106,"IDN","Indonesia",9,"Jambi",82,"Tebo","Kabupaten","Regency",NA,NA
+83,106,"IDN","Indonesia",10,"Jawa Barat",83,"Bandung","Kabupaten","Regency",NA,NA
+84,106,"IDN","Indonesia",10,"Jawa Barat",84,"Banjar","Kotamadya","Municipality",NA,"Kota Banjar"
+85,106,"IDN","Indonesia",10,"Jawa Barat",85,"Bekasi","Kabupaten","Regency",NA,NA
+86,106,"IDN","Indonesia",10,"Jawa Barat",86,"Bogor","Kabupaten","Regency",NA,NA
+87,106,"IDN","Indonesia",10,"Jawa Barat",87,"Ciamis","Kabupaten","Regency",NA,NA
+88,106,"IDN","Indonesia",10,"Jawa Barat",88,"Cianjur","Kabupaten","Regency",NA,NA
+89,106,"IDN","Indonesia",10,"Jawa Barat",89,"Cimahi","Kotamadya","Municipality",NA,"Kota Cimahi"
+90,106,"IDN","Indonesia",10,"Jawa Barat",90,"Cirebon","Kabupaten","Regency",NA,NA
+91,106,"IDN","Indonesia",10,"Jawa Barat",91,"Depok","Kotamadya","Municipality",NA,"Kota Depok"
+92,106,"IDN","Indonesia",10,"Jawa Barat",92,"Garut","Kabupaten","Regency",NA,NA
+93,106,"IDN","Indonesia",10,"Jawa Barat",93,"Indramayu","Kabupaten","Regency",NA,NA
+94,106,"IDN","Indonesia",10,"Jawa Barat",94,"Karawang","Kabupaten","Regency",NA,NA
+95,106,"IDN","Indonesia",10,"Jawa Barat",95,"Kota Bandung","Kotamadya","Municipality",NA,NA
+96,106,"IDN","Indonesia",10,"Jawa Barat",96,"Kota Bekasi","Kotamadya","Municipality",NA,NA
+97,106,"IDN","Indonesia",10,"Jawa Barat",97,"Kota Bogor","Kotamadya","Municipality",NA,NA
+98,106,"IDN","Indonesia",10,"Jawa Barat",98,"Kota Cirebon","Kotamadya","Municipality",NA,NA
+99,106,"IDN","Indonesia",10,"Jawa Barat",99,"Kota Sukabumi","Kotamadya","Municipality",NA,NA
+100,106,"IDN","Indonesia",10,"Jawa Barat",100,"Kota Tasikmalaya","Kotamadya","Municipality",NA,NA
+101,106,"IDN","Indonesia",10,"Jawa Barat",101,"Kuningan","Kabupaten","Regency",NA,NA
+102,106,"IDN","Indonesia",10,"Jawa Barat",102,"Majalengka","Kabupaten","Regency",NA,NA
+103,106,"IDN","Indonesia",10,"Jawa Barat",103,"Purwakarta","Kabupaten","Regency",NA,NA
+104,106,"IDN","Indonesia",10,"Jawa Barat",104,"Subang","Kabupaten","Regency",NA,NA
+105,106,"IDN","Indonesia",10,"Jawa Barat",105,"Sukabumi","Kabupaten","Regency",NA,NA
+106,106,"IDN","Indonesia",10,"Jawa Barat",106,"Sumedang","Kabupaten","Regency",NA,NA
+107,106,"IDN","Indonesia",10,"Jawa Barat",107,"Tasikmalaya","Kabupaten","Regency",NA,NA
+108,106,"IDN","Indonesia",11,"Jawa Tengah",108,"Banjarnegara","Kabupaten","Regency",NA,NA
+109,106,"IDN","Indonesia",11,"Jawa Tengah",109,"Banyumas","Kabupaten","Regency",NA,NA
+110,106,"IDN","Indonesia",11,"Jawa Tengah",110,"Batang","Kabupaten","Regency",NA,NA
+111,106,"IDN","Indonesia",11,"Jawa Tengah",111,"Blora","Kabupaten","Regency",NA,NA
+112,106,"IDN","Indonesia",11,"Jawa Tengah",112,"Boyolali","Kabupaten","Regency",NA,NA
+113,106,"IDN","Indonesia",11,"Jawa Tengah",113,"Brebes","Kabupaten","Regency",NA,NA
+114,106,"IDN","Indonesia",11,"Jawa Tengah",114,"Cilacap","Kabupaten","Regency",NA,NA
+115,106,"IDN","Indonesia",11,"Jawa Tengah",115,"Demak","Kabupaten","Regency",NA,NA
+116,106,"IDN","Indonesia",11,"Jawa Tengah",116,"Grobogan","Kabupaten","Regency",NA,"Grobogan/Purwodadi"
+117,106,"IDN","Indonesia",11,"Jawa Tengah",117,"Jepara","Kabupaten","Regency",NA,NA
+118,106,"IDN","Indonesia",11,"Jawa Tengah",118,"Karanganyar","Kabupaten","Regency",NA,NA
+119,106,"IDN","Indonesia",11,"Jawa Tengah",119,"Kebumen","Kabupaten","Regency",NA,NA
+120,106,"IDN","Indonesia",11,"Jawa Tengah",120,"Kendal","Kabupaten","Regency",NA,NA
+121,106,"IDN","Indonesia",11,"Jawa Tengah",121,"Klaten","Kabupaten","Regency",NA,NA
+122,106,"IDN","Indonesia",11,"Jawa Tengah",122,"Kota Magelang","Kotamadya","Municipality",NA,NA
+123,106,"IDN","Indonesia",11,"Jawa Tengah",123,"Kota Pekalongan","Kotamadya","Municipality",NA,"Pekalongan City"
+124,106,"IDN","Indonesia",11,"Jawa Tengah",124,"Kota Semarang","Kotamadya","Municipality",NA,NA
+125,106,"IDN","Indonesia",11,"Jawa Tengah",125,"Kota Tegal","Kotamadya","Municipality",NA,NA
+126,106,"IDN","Indonesia",11,"Jawa Tengah",126,"Kudus","Kabupaten","Regency",NA,NA
+127,106,"IDN","Indonesia",11,"Jawa Tengah",127,"Magelang","Kabupaten","Regency",NA,NA
+128,106,"IDN","Indonesia",11,"Jawa Tengah",128,"Pati","Kabupaten","Regency",NA,NA
+129,106,"IDN","Indonesia",11,"Jawa Tengah",129,"Pekalongan","Kabupaten","Regency",NA,NA
+130,106,"IDN","Indonesia",11,"Jawa Tengah",130,"Pemalang","Kabupaten","Regency",NA,NA
+131,106,"IDN","Indonesia",11,"Jawa Tengah",131,"Purbalingga","Kabupaten","Regency",NA,NA
+132,106,"IDN","Indonesia",11,"Jawa Tengah",132,"Purwokerto","Kabupaten","Regency",NA,NA
+133,106,"IDN","Indonesia",11,"Jawa Tengah",133,"Purworejo","Kabupaten","Regency",NA,NA
+134,106,"IDN","Indonesia",11,"Jawa Tengah",134,"Rembang","Kabupaten","Regency",NA,NA
+135,106,"IDN","Indonesia",11,"Jawa Tengah",135,"Salatiga","Kotamadya","Municipality",NA,"Kota Salatiga"
+136,106,"IDN","Indonesia",11,"Jawa Tengah",136,"Semarang","Kabupaten","Regency",NA,NA
+137,106,"IDN","Indonesia",11,"Jawa Tengah",137,"Sragen","Kabupaten","Regency",NA,NA
+138,106,"IDN","Indonesia",11,"Jawa Tengah",138,"Sukoharjo","Kabupaten","Regency",NA,NA
+139,106,"IDN","Indonesia",11,"Jawa Tengah",139,"Surakarta","Kotamadya","Municipality",NA,"Kota Surakarta"
+140,106,"IDN","Indonesia",11,"Jawa Tengah",140,"Tegal","Kabupaten","Regency",NA,NA
+141,106,"IDN","Indonesia",11,"Jawa Tengah",141,"Temanggung","Kabupaten","Regency",NA,NA
+142,106,"IDN","Indonesia",11,"Jawa Tengah",142,"Wonogiri","Kabupaten","Regency",NA,NA
+143,106,"IDN","Indonesia",11,"Jawa Tengah",143,"Wonosobo","Kabupaten","Regency",NA,NA
+144,106,"IDN","Indonesia",12,"Jawa Timur",144,"Bangkalan","Kabupaten","Regency",NA,NA
+145,106,"IDN","Indonesia",12,"Jawa Timur",145,"Banyuwangi","Kabupaten","Regency",NA,NA
+146,106,"IDN","Indonesia",12,"Jawa Timur",146,"Batu","Kotamadya","Municipality",NA,"Kota Batu"
+147,106,"IDN","Indonesia",12,"Jawa Timur",147,"Blitar
+","Kabupaten","Regency",NA,NA
+148,106,"IDN","Indonesia",12,"Jawa Timur",148,"Blitar","Kotamadya","Municipality",NA,NA
+149,106,"IDN","Indonesia",12,"Jawa Timur",149,"Bojonegoro","Kabupaten","Regency",NA,NA
+150,106,"IDN","Indonesia",12,"Jawa Timur",150,"Bondowoso","Kabupaten","Regency",NA,NA
+151,106,"IDN","Indonesia",12,"Jawa Timur",151,"Gresik","Kabupaten","Regency",NA,NA
+152,106,"IDN","Indonesia",12,"Jawa Timur",152,"Jember","Kabupaten","Regency",NA,NA
+153,106,"IDN","Indonesia",12,"Jawa Timur",153,"Jember","Kotamadya","Municipality",NA,NA
+154,106,"IDN","Indonesia",12,"Jawa Timur",154,"Jombang","Kabupaten","Regency",NA,NA
+155,106,"IDN","Indonesia",12,"Jawa Timur",155,"Kediri","Kabupaten","Regency",NA,NA
+156,106,"IDN","Indonesia",12,"Jawa Timur",156,"Kediri","Kotamadya","Municipality",NA,NA
+157,106,"IDN","Indonesia",12,"Jawa Timur",157,"Lamongan","Kabupaten","Regency",NA,NA
+158,106,"IDN","Indonesia",12,"Jawa Timur",158,"Lumajang","Kabupaten","Regency",NA,NA
+159,106,"IDN","Indonesia",12,"Jawa Timur",159,"Madiun","Kabupaten","Regency",NA,NA
+160,106,"IDN","Indonesia",12,"Jawa Timur",160,"Madiun","Kotamadya","Municipality",NA,NA
+161,106,"IDN","Indonesia",12,"Jawa Timur",161,"Magetan","Kabupaten","Regency",NA,NA
+162,106,"IDN","Indonesia",12,"Jawa Timur",162,"Malang","Kabupaten","Regency",NA,NA
+163,106,"IDN","Indonesia",12,"Jawa Timur",163,"Malang","Kotamadya","Municipality",NA,NA
+164,106,"IDN","Indonesia",12,"Jawa Timur",164,"Mojokerto","Kabupaten","Regency",NA,NA
+165,106,"IDN","Indonesia",12,"Jawa Timur",165,"Mojokerto","Kotamadya","Municipality",NA,NA
+166,106,"IDN","Indonesia",12,"Jawa Timur",166,"Nganjuk","Kabupaten","Regency",NA,NA
+167,106,"IDN","Indonesia",12,"Jawa Timur",167,"Ngawi","Kabupaten","Regency",NA,NA
+168,106,"IDN","Indonesia",12,"Jawa Timur",168,"Pacitan","Kabupaten","Regency",NA,NA
+169,106,"IDN","Indonesia",12,"Jawa Timur",169,"Pamekasan","Kabupaten","Regency",NA,NA
+170,106,"IDN","Indonesia",12,"Jawa Timur",170,"Pasuruan","Kabupaten","Regency",NA,NA
+171,106,"IDN","Indonesia",12,"Jawa Timur",171,"Pasuruan","Kotamadya","Municipality",NA,NA
+172,106,"IDN","Indonesia",12,"Jawa Timur",172,"Ponorogo","Kabupaten","Regency",NA,NA
+173,106,"IDN","Indonesia",12,"Jawa Timur",173,"Probolinggo","Kabupaten","Regency",NA,NA
+174,106,"IDN","Indonesia",12,"Jawa Timur",174,"Probolinggo","Kotamadya","Municipality",NA,NA
+175,106,"IDN","Indonesia",12,"Jawa Timur",175,"Sampang","Kabupaten","Regency",NA,NA
+176,106,"IDN","Indonesia",12,"Jawa Timur",176,"Sidoarjo","Kabupaten","Regency",NA,NA
+177,106,"IDN","Indonesia",12,"Jawa Timur",177,"Situbondo","Kabupaten","Regency",NA,NA
+178,106,"IDN","Indonesia",12,"Jawa Timur",178,"Sumenep","Kabupaten","Regency",NA,NA
+179,106,"IDN","Indonesia",12,"Jawa Timur",179,"Surabaya","Kotamadya","Municipality",NA,NA
+180,106,"IDN","Indonesia",12,"Jawa Timur",180,"Trenggalek","Kabupaten","Regency",NA,NA
+181,106,"IDN","Indonesia",12,"Jawa Timur",181,"Tuban","Kabupaten","Regency",NA,NA
+182,106,"IDN","Indonesia",12,"Jawa Timur",182,"Tulungagung","Kabupaten","Regency",NA,NA
+183,106,"IDN","Indonesia",13,"Kalimantan Barat",183,"Bengkayang","Kabupaten","Regency",NA,NA
+184,106,"IDN","Indonesia",13,"Kalimantan Barat",184,"Kapuas Hulu","Kabupaten","Regency",NA,NA
+185,106,"IDN","Indonesia",13,"Kalimantan Barat",185,"Ketapang","Kabupaten","Regency",NA,NA
+186,106,"IDN","Indonesia",13,"Kalimantan Barat",186,"Landak","Kabupaten","Regency",NA,NA
+187,106,"IDN","Indonesia",13,"Kalimantan Barat",187,"Melawi","Kabupaten","Regency",NA,NA
+188,106,"IDN","Indonesia",13,"Kalimantan Barat",188,"Pontianak","Kabupaten","Regency",NA,NA
+189,106,"IDN","Indonesia",13,"Kalimantan Barat",189,"Pontianak","Kotamadya","Municipality",NA,"Pontianak City"
+190,106,"IDN","Indonesia",13,"Kalimantan Barat",190,"Sambas","Kabupaten","Regency",NA,NA
+191,106,"IDN","Indonesia",13,"Kalimantan Barat",191,"Sanggau","Kabupaten","Regency",NA,NA
+192,106,"IDN","Indonesia",13,"Kalimantan Barat",192,"Sekadau","Kabupaten","Regency",NA,NA
+193,106,"IDN","Indonesia",13,"Kalimantan Barat",193,"Singkawang","Kotamadya","Municipality",NA,"Kota Singkawang"
+194,106,"IDN","Indonesia",13,"Kalimantan Barat",194,"Sintang","Kabupaten","Regency",NA,NA
+195,106,"IDN","Indonesia",14,"Kalimantan Selatan",195,"Balangan","Kabupaten","Regency",NA,NA
+196,106,"IDN","Indonesia",14,"Kalimantan Selatan",196,"Banjar Baru","Kotamadya","Municipality",NA,"Kota Banjar Baru|Bajarbaru"
+197,106,"IDN","Indonesia",14,"Kalimantan Selatan",197,"Banjar","Kotamadya","Municipality",NA,"Kota Banjar"
+198,106,"IDN","Indonesia",14,"Kalimantan Selatan",198,"Banjarmasin","Kotamadya","Municipality",NA,"Kota Banjarmasin"
+199,106,"IDN","Indonesia",14,"Kalimantan Selatan",199,"Barito Kuala","Kabupaten","Regency",NA,"Barito Utara"
+200,106,"IDN","Indonesia",14,"Kalimantan Selatan",200,"Hulu Sungai Selatan","Kabupaten","Regency",NA,NA
+201,106,"IDN","Indonesia",14,"Kalimantan Selatan",201,"Hulu Sungai Tengah","Kabupaten","Regency",NA,NA
+202,106,"IDN","Indonesia",14,"Kalimantan Selatan",202,"Hulu Sungai Utara","Kabupaten","Regency",NA,NA
+203,106,"IDN","Indonesia",14,"Kalimantan Selatan",203,"Kota Baru","Kabupaten","Regency",NA,NA
+204,106,"IDN","Indonesia",14,"Kalimantan Selatan",204,"n.a. ( 202)","Unknown","Unknown",NA,NA
+205,106,"IDN","Indonesia",14,"Kalimantan Selatan",205,"Tabalong","Kabupaten","Regency",NA,NA
+206,106,"IDN","Indonesia",14,"Kalimantan Selatan",206,"Tanah Bumbu","Kabupaten","Regency",NA,NA
+207,106,"IDN","Indonesia",14,"Kalimantan Selatan",207,"Tanah Laut","Kabupaten","Regency",NA,NA
+208,106,"IDN","Indonesia",14,"Kalimantan Selatan",208,"Tapin","Kabupaten","Regency",NA,NA
+209,106,"IDN","Indonesia",15,"Kalimantan Tengah",209,"Barito Selatan","Kabupaten","Regency",NA,NA
+210,106,"IDN","Indonesia",15,"Kalimantan Tengah",210,"Barito Timur","Kabupaten","Regency",NA,NA
+211,106,"IDN","Indonesia",15,"Kalimantan Tengah",211,"Barito Utara","Kabupaten","Regency",NA,NA
+212,106,"IDN","Indonesia",15,"Kalimantan Tengah",212,"Gunung Mas","Kabupaten","Regency",NA,NA
+213,106,"IDN","Indonesia",15,"Kalimantan Tengah",213,"Kapuas","Kabupaten","Regency",NA,NA
+214,106,"IDN","Indonesia",15,"Kalimantan Tengah",214,"Katingan","Kabupaten","Regency",NA,NA
+215,106,"IDN","Indonesia",15,"Kalimantan Tengah",215,"Kotawaringin Barat","Kabupaten","Regency",NA,NA
+216,106,"IDN","Indonesia",15,"Kalimantan Tengah",216,"Kotawaringin Timur","Kabupaten","Regency",NA,NA
+217,106,"IDN","Indonesia",15,"Kalimantan Tengah",217,"Lamandau","Kabupaten","Regency",NA,NA
+218,106,"IDN","Indonesia",15,"Kalimantan Tengah",218,"Murung Raya","Kabupaten","Regency",NA,NA
+219,106,"IDN","Indonesia",15,"Kalimantan Tengah",219,"Palangka Raya","Kotamadya","Municipality",NA,"Kota Palangka Raya"
+220,106,"IDN","Indonesia",15,"Kalimantan Tengah",220,"Pulang Pisau","Kabupaten","Regency",NA,"Pulau Pisau"
+221,106,"IDN","Indonesia",15,"Kalimantan Tengah",221,"Seruyan","Kabupaten","Regency",NA,NA
+222,106,"IDN","Indonesia",15,"Kalimantan Tengah",222,"Sukamara","Kabupaten","Regency",NA,NA
+223,106,"IDN","Indonesia",16,"Kalimantan Timur",223,"Balikpapan","Kotamadya","Municipality",NA,"Kota Balikpapan"
+224,106,"IDN","Indonesia",16,"Kalimantan Timur",224,"Berau","Kabupaten","Regency",NA,NA
+225,106,"IDN","Indonesia",16,"Kalimantan Timur",225,"Bontang","Kotamadya","Municipality",NA,"Kota Bontang"
+226,106,"IDN","Indonesia",16,"Kalimantan Timur",226,"Kutai Barat","Kabupaten","Regency",NA,"West Kutai"
+227,106,"IDN","Indonesia",16,"Kalimantan Timur",227,"Kutai Kartanegara","Kabupaten","Regency",NA,"Kutai Kertanegara|Kutai"
+228,106,"IDN","Indonesia",16,"Kalimantan Timur",228,"Kutai Timur","Kabupaten","Regency",NA,"East Kutai"
+229,106,"IDN","Indonesia",16,"Kalimantan Timur",229,"Pasir","Kabupaten","Regency",NA,NA
+230,106,"IDN","Indonesia",16,"Kalimantan Timur",230,"Penajam Paser Utara","Kabupaten","Regency",NA,NA
+231,106,"IDN","Indonesia",16,"Kalimantan Timur",231,"Samarinda","Kotamadya","Municipality",NA,"Kota Samarinda"
+232,106,"IDN","Indonesia",16,"Kalimantan Timur",232,"Tarakan","Kotamadya","Municipality",NA,"Kota Tarakan"
+233,106,"IDN","Indonesia",17,"Kalimantan Utara",233,"Bulongan","Kabupaten","Regency",NA,"Bulungan"
+234,106,"IDN","Indonesia",17,"Kalimantan Utara",234,"Malinau","Kabupaten","Regency",NA,NA
+235,106,"IDN","Indonesia",17,"Kalimantan Utara",235,"Nunukan","Kabupaten","Regency",NA,NA
+236,106,"IDN","Indonesia",18,"Kepulauan Riau",236,"Batam","Kotamadya","Municipality",NA,"Kota Batam"
+237,106,"IDN","Indonesia",18,"Kepulauan Riau",237,"Karimun","Kabupaten","Regency",NA,NA
+238,106,"IDN","Indonesia",18,"Kepulauan Riau",238,"Kepulauan Riau","Kabupaten","Regency",NA,NA
+239,106,"IDN","Indonesia",18,"Kepulauan Riau",239,"Lingga","Kotamadya","Municipality",NA,NA
+240,106,"IDN","Indonesia",18,"Kepulauan Riau",240,"Natuna","Kabupaten","Regency",NA,NA
+241,106,"IDN","Indonesia",18,"Kepulauan Riau",241,"Tanjung Pinang","Kotamadya","Municipality",NA,"Kota Tanjung Pinang"
+242,106,"IDN","Indonesia",19,"Lampung",242,"Bandar Lampung","Kotamadya","Municipality",NA,"Kota Bandar Lampung"
+243,106,"IDN","Indonesia",19,"Lampung",243,"Lampung Barat","Kabupaten","Regency",NA,"West Lampung"
+244,106,"IDN","Indonesia",19,"Lampung",244,"Lampung Selatan","Kabupaten","Regency",NA,"South Lampung"
+245,106,"IDN","Indonesia",19,"Lampung",245,"Lampung Tengah","Kabupaten","Regency",NA,"Central Lampung"
+246,106,"IDN","Indonesia",19,"Lampung",246,"Lampung Timur","Kabupaten","Regency",NA,"East Lampung"
+247,106,"IDN","Indonesia",19,"Lampung",247,"Lampung Utara","Kabupaten","Regency",NA,"North Lampung"
+248,106,"IDN","Indonesia",19,"Lampung",248,"Metro","Kotamadya","Municipality",NA,"Kota Metro"
+249,106,"IDN","Indonesia",19,"Lampung",249,"Tanggamus","Kabupaten","Regency",NA,NA
+250,106,"IDN","Indonesia",19,"Lampung",250,"Tulang Bawang","Kabupaten","Regency",NA,NA
+251,106,"IDN","Indonesia",19,"Lampung",251,"Way Kanan","Kabupaten","Regency",NA,NA
+252,106,"IDN","Indonesia",20,"Maluku Utara",252,"Halmahera Barat","Kabupaten","Regency",NA,"West Halmahera"
+253,106,"IDN","Indonesia",20,"Maluku Utara",253,"Halmahera Selatan","Kabupaten","Regency",NA,"South Halmahera"
+254,106,"IDN","Indonesia",20,"Maluku Utara",254,"Halmahera Tengah
+Halmahera Tengah
+","Kabupaten","Regency",NA,"Central Halmahera"
+255,106,"IDN","Indonesia",20,"Maluku Utara",255,"Halmahera Timur","Kabupaten","Regency",NA,"East Halmahera"
+256,106,"IDN","Indonesia",20,"Maluku Utara",256,"Halmahera Utara","Kabupaten","Regency",NA,"Maluku Utara|North Halmahera"
+257,106,"IDN","Indonesia",20,"Maluku Utara",257,"Kepulauan Sula","Kabupaten","Regency",NA,NA
+258,106,"IDN","Indonesia",20,"Maluku Utara",258,"Ternate","Kotamadya","Municipality",NA,"Kota Ternate"
+259,106,"IDN","Indonesia",20,"Maluku Utara",259,"Tidore Kepulauan","Kabupaten","Regency",NA,NA
+260,106,"IDN","Indonesia",21,"Maluku",260,"Ambon","Kabupaten","Regency",NA,"Kota Ambon"
+261,106,"IDN","Indonesia",21,"Maluku",261,"Buru","Kabupaten","Regency",NA,NA
+262,106,"IDN","Indonesia",21,"Maluku",262,"Kepulauan Aru","Kabupaten","Regency",NA,"Kepulaan-Aru"
+263,106,"IDN","Indonesia",21,"Maluku",263,"Maluku Tengah","Kabupaten","Regency",NA,"Central Maluku"
+264,106,"IDN","Indonesia",21,"Maluku",264,"Maluku Tenggara Barat","Kabupaten","Regency",NA,"West Southeast Maluku"
+265,106,"IDN","Indonesia",21,"Maluku",265,"Maluku Tenggara","Kabupaten","Regency",NA,NA
+266,106,"IDN","Indonesia",21,"Maluku",266,"Seram Bagian Barat","Kabupaten","Regency",NA,"West Seram"
+267,106,"IDN","Indonesia",21,"Maluku",267,"Seram Bagian Timur","Kabupaten","Regency",NA,"East Seram"
+268,106,"IDN","Indonesia",22,"Nusa Tenggara Barat",268,"Bima","Kabupaten","Regency",NA,NA
+269,106,"IDN","Indonesia",22,"Nusa Tenggara Barat",269,"Bima","Kotamadya","Municipality",NA,NA
+270,106,"IDN","Indonesia",22,"Nusa Tenggara Barat",270,"Dompu","Kabupaten","Regency",NA,NA
+271,106,"IDN","Indonesia",22,"Nusa Tenggara Barat",271,"Lombok Barat","Kabupaten","Regency",NA,NA
+272,106,"IDN","Indonesia",22,"Nusa Tenggara Barat",272,"Lombok Tengah","Kabupaten","Regency",NA,NA
+273,106,"IDN","Indonesia",22,"Nusa Tenggara Barat",273,"Lombok Timur","Kabupaten","Regency",NA,NA
+274,106,"IDN","Indonesia",22,"Nusa Tenggara Barat",274,"Mataram","Kotamadya","Municipality",NA,"Kota Mataram"
+275,106,"IDN","Indonesia",22,"Nusa Tenggara Barat",275,"Sumbawa Barat","Kabupaten","Regency",NA,"West Sumbawa"
+276,106,"IDN","Indonesia",22,"Nusa Tenggara Barat",276,"Sumbawa","Kabupaten","Regency",NA,NA
+277,106,"IDN","Indonesia",23,"Nusa Tenggara Timur",277,"Alor","Kabupaten","Regency",NA,NA
+278,106,"IDN","Indonesia",23,"Nusa Tenggara Timur",278,"Belu","Kabupaten","Regency",NA,NA
+279,106,"IDN","Indonesia",23,"Nusa Tenggara Timur",279,"Ende","Kabupaten","Regency",NA,NA
+280,106,"IDN","Indonesia",23,"Nusa Tenggara Timur",280,"Flores Timur","Kabupaten","Regency",NA,"Flores Timor|East Flores"
+281,106,"IDN","Indonesia",23,"Nusa Tenggara Timur",281,"Kupang","Kabupaten","Regency",NA,NA
+282,106,"IDN","Indonesia",23,"Nusa Tenggara Timur",282,"Kupang","Kotamadya","Municipality",NA,NA
+283,106,"IDN","Indonesia",23,"Nusa Tenggara Timur",283,"Lembata","Kabupaten","Regency",NA,NA
+284,106,"IDN","Indonesia",23,"Nusa Tenggara Timur",284,"Manggarai Barat","Kabupaten","Regency",NA,"West Manggarai"
+285,106,"IDN","Indonesia",23,"Nusa Tenggara Timur",285,"Manggarai","Kabupaten","Regency",NA,NA
+286,106,"IDN","Indonesia",23,"Nusa Tenggara Timur",286,"Ngada","Kabupaten","Regency",NA,NA
+287,106,"IDN","Indonesia",23,"Nusa Tenggara Timur",287,"Rote Ndao","Kabupaten","Regency",NA,NA
+288,106,"IDN","Indonesia",23,"Nusa Tenggara Timur",288,"Sikka","Kabupaten","Regency",NA,NA
+289,106,"IDN","Indonesia",23,"Nusa Tenggara Timur",289,"Sumba Barat","Kabupaten","Regency",NA,"West Sumba"
+290,106,"IDN","Indonesia",23,"Nusa Tenggara Timur",290,"Sumba Timur","Kabupaten","Regency",NA,"East Sumba"
+291,106,"IDN","Indonesia",23,"Nusa Tenggara Timur",291,"Timor Tengah Selatan","Kabupaten","Regency",NA,"South Central Timor"
+292,106,"IDN","Indonesia",23,"Nusa Tenggara Timur",292,"Timor Tengah Utara","Kabupaten","Regency",NA,"North Central Timor"
+293,106,"IDN","Indonesia",24,"Papua",293,"Asmat","Kabupaten","Regency",NA,NA
+294,106,"IDN","Indonesia",24,"Papua",294,"Biak Numfor","Kabupaten","Regency",NA,NA
+295,106,"IDN","Indonesia",24,"Papua",295,"Boven Digoel","Kabupaten","Regency",NA,NA
+296,106,"IDN","Indonesia",24,"Papua",296,"Jayapura","Kotamadya","Municipality",NA,NA
+297,106,"IDN","Indonesia",24,"Papua",297,"Jayawijaya","Kabupaten","Regency",NA,NA
+298,106,"IDN","Indonesia",24,"Papua",298,"Keerom","Kabupaten","Regency",NA,NA
+299,106,"IDN","Indonesia",24,"Papua",299,"Kota Jayapura","Kotamadya","Municipality",NA,"Jayapura"
+300,106,"IDN","Indonesia",24,"Papua",300,"Mappi","Kabupaten","Regency",NA,NA
+301,106,"IDN","Indonesia",24,"Papua",301,"Merauke","Kabupaten","Regency",NA,NA
+302,106,"IDN","Indonesia",24,"Papua",302,"Mimika","Kabupaten","Regency",NA,NA
+303,106,"IDN","Indonesia",24,"Papua",303,"Nabire","Kabupaten","Regency",NA,NA
+304,106,"IDN","Indonesia",24,"Papua",304,"Paniai","Kabupaten","Regency",NA,NA
+305,106,"IDN","Indonesia",24,"Papua",305,"Pegunungan Bintang","Kabupaten","Regency",NA,NA
+306,106,"IDN","Indonesia",24,"Papua",306,"Puncak Jaya","Kabupaten","Regency",NA,NA
+307,106,"IDN","Indonesia",24,"Papua",307,"Sarmi","Kabupaten","Regency",NA,NA
+308,106,"IDN","Indonesia",24,"Papua",308,"Supiori","Kabupaten","Regency",NA,NA
+309,106,"IDN","Indonesia",24,"Papua",309,"Tolikara","Kabupaten","Regency",NA,NA
+310,106,"IDN","Indonesia",24,"Papua",310,"Waropen","Kabupaten","Regency",NA,NA
+311,106,"IDN","Indonesia",24,"Papua",311,"Yahukimo","Kabupaten","Regency",NA,NA
+312,106,"IDN","Indonesia",24,"Papua",312,"Yapen Waropen","Kabupaten","Regency",NA,NA
+313,106,"IDN","Indonesia",25,"Riau",313,"Bengkalis","Kabupaten","Regency",NA,NA
+314,106,"IDN","Indonesia",25,"Riau",314,"Dumai","Kotamadya","Municipality",NA,"Kota Dumai"
+315,106,"IDN","Indonesia",25,"Riau",315,"Indragiri Hilir","Kabupaten","Regency",NA,NA
+316,106,"IDN","Indonesia",25,"Riau",316,"Indragiri Hulu","Kabupaten","Regency",NA,NA
+317,106,"IDN","Indonesia",25,"Riau",317,"Kampar","Kabupaten","Regency",NA,NA
+318,106,"IDN","Indonesia",25,"Riau",318,"Kuantan Singingi","Kabupaten","Regency",NA,NA
+319,106,"IDN","Indonesia",25,"Riau",319,"Pekan Baru","Kotamadya","Municipality",NA,"Kota Pekan Baru"
+320,106,"IDN","Indonesia",25,"Riau",320,"Pelalawan","Kabupaten","Regency",NA,NA
+321,106,"IDN","Indonesia",25,"Riau",321,"Rokan Hilir","Kabupaten","Regency",NA,NA
+322,106,"IDN","Indonesia",25,"Riau",322,"Rokan Hulu","Kabupaten","Regency",NA,NA
+323,106,"IDN","Indonesia",25,"Riau",323,"Siak","Kabupaten","Regency",NA,NA
+324,106,"IDN","Indonesia",26,"Sulawesi Barat",324,"Majene","Kabupaten","Regency",NA,NA
+325,106,"IDN","Indonesia",26,"Sulawesi Barat",325,"Mamasa","Kabupaten","Regency",NA,NA
+326,106,"IDN","Indonesia",26,"Sulawesi Barat",326,"Mamuju Utara","Kabupaten","Regency",NA,NA
+327,106,"IDN","Indonesia",26,"Sulawesi Barat",327,"Mamuju","Kabupaten","Regency",NA,NA
+328,106,"IDN","Indonesia",26,"Sulawesi Barat",328,"Polewali Mamasa","Kabupaten","Regency",NA,NA
+329,106,"IDN","Indonesia",27,"Sulawesi Selatan",329,"Bantaeng","Kabupaten","Regency",NA,NA
+330,106,"IDN","Indonesia",27,"Sulawesi Selatan",330,"Barru","Kabupaten","Regency",NA,NA
+331,106,"IDN","Indonesia",27,"Sulawesi Selatan",331,"Bone","Kabupaten","Regency",NA,NA
+332,106,"IDN","Indonesia",27,"Sulawesi Selatan",332,"Bulukumba","Kabupaten","Regency",NA,NA
+333,106,"IDN","Indonesia",27,"Sulawesi Selatan",333,"Enrekang","Kabupaten","Regency",NA,NA
+334,106,"IDN","Indonesia",27,"Sulawesi Selatan",334,"Gowa","Kabupaten","Regency",NA,NA
+335,106,"IDN","Indonesia",27,"Sulawesi Selatan",335,"Jeneponto","Kabupaten","Regency",NA,NA
+336,106,"IDN","Indonesia",27,"Sulawesi Selatan",336,"Luwu Timur","Kabupaten","Regency",NA,NA
+337,106,"IDN","Indonesia",27,"Sulawesi Selatan",337,"Luwu Utara","Kabupaten","Regency",NA,NA
+338,106,"IDN","Indonesia",27,"Sulawesi Selatan",338,"Luwu","Kabupaten","Regency",NA,NA
+339,106,"IDN","Indonesia",27,"Sulawesi Selatan",339,"Makassar","Kotamadya","Municipality",NA,"Kota Makasar|Ujung Pandang"
+340,106,"IDN","Indonesia",27,"Sulawesi Selatan",340,"Maros","Kabupaten","Regency",NA,NA
+341,106,"IDN","Indonesia",27,"Sulawesi Selatan",341,"Palopo","Kotamadya","Municipality",NA,"Kota Palopo"
+342,106,"IDN","Indonesia",27,"Sulawesi Selatan",342,"Pangkajene Kepulauan","Kabupaten","Regency",NA,NA
+343,106,"IDN","Indonesia",27,"Sulawesi Selatan",343,"Pare-Pare","Kotamadya","Municipality",NA,"Kota Pare-Pare"
+344,106,"IDN","Indonesia",27,"Sulawesi Selatan",344,"Pinrang","Kabupaten","Regency",NA,NA
+345,106,"IDN","Indonesia",27,"Sulawesi Selatan",345,"Selayar","Kabupaten","Regency",NA,NA
+346,106,"IDN","Indonesia",27,"Sulawesi Selatan",346,"Sidenreng Rappang","Kabupaten","Regency",NA,NA
+347,106,"IDN","Indonesia",27,"Sulawesi Selatan",347,"Sinjai","Kabupaten","Regency",NA,NA
+348,106,"IDN","Indonesia",27,"Sulawesi Selatan",348,"Soppeng","Kabupaten","Regency",NA,NA
+349,106,"IDN","Indonesia",27,"Sulawesi Selatan",349,"Takalar","Kabupaten","Regency",NA,NA
+350,106,"IDN","Indonesia",27,"Sulawesi Selatan",350,"Tana Toraja","Kabupaten","Regency",NA,NA
+351,106,"IDN","Indonesia",27,"Sulawesi Selatan",351,"Wajo","Kabupaten","Regency",NA,NA
+352,106,"IDN","Indonesia",28,"Sulawesi Tengah",352,"Banggai Kepulauan","Kabupaten","Regency",NA,NA
+353,106,"IDN","Indonesia",28,"Sulawesi Tengah",353,"Banggai","Kabupaten","Regency",NA,NA
+354,106,"IDN","Indonesia",28,"Sulawesi Tengah",354,"Buol","Kabupaten","Regency",NA,"Buol Toli-Toli"
+355,106,"IDN","Indonesia",28,"Sulawesi Tengah",355,"Donggala","Kabupaten","Regency",NA,NA
+356,106,"IDN","Indonesia",28,"Sulawesi Tengah",356,"Morowali","Kabupaten","Regency",NA,NA
+357,106,"IDN","Indonesia",28,"Sulawesi Tengah",357,"Palu","Kotamadya","Municipality",NA,"Kota Palu"
+358,106,"IDN","Indonesia",28,"Sulawesi Tengah",358,"Parigi Moutong","Kabupaten","Regency",NA,NA
+359,106,"IDN","Indonesia",28,"Sulawesi Tengah",359,"Poso","Kabupaten","Regency",NA,NA
+360,106,"IDN","Indonesia",28,"Sulawesi Tengah",360,"Tojo Una-Una","Kabupaten","Regency",NA,NA
+361,106,"IDN","Indonesia",28,"Sulawesi Tengah",361,"Toli-Toli","Kabupaten","Regency",NA,NA
+362,106,"IDN","Indonesia",29,"Sulawesi Tenggara",362,"Baubau","Kotamadya","Municipality",NA,"Kota Bau-Bau"
+363,106,"IDN","Indonesia",29,"Sulawesi Tenggara",363,"Bombana","Kabupaten","Regency",NA,NA
+364,106,"IDN","Indonesia",29,"Sulawesi Tenggara",364,"Buton","Kabupaten","Regency",NA,NA
+365,106,"IDN","Indonesia",29,"Sulawesi Tenggara",365,"Kendari","Kotamadya","Municipality",NA,NA
+366,106,"IDN","Indonesia",29,"Sulawesi Tenggara",366,"Kolaka Utara","Kabupaten","Regency",NA,NA
+367,106,"IDN","Indonesia",29,"Sulawesi Tenggara",367,"Kolaka","Kabupaten","Regency",NA,NA
+368,106,"IDN","Indonesia",29,"Sulawesi Tenggara",368,"Konawe Selatan","Kotamadya","Municipality",NA,NA
+369,106,"IDN","Indonesia",29,"Sulawesi Tenggara",369,"Kota Kendari","Kotamadya","Municipality",NA,"Kendari"
+370,106,"IDN","Indonesia",29,"Sulawesi Tenggara",370,"Muna","Kabupaten","Regency",NA,NA
+371,106,"IDN","Indonesia",29,"Sulawesi Tenggara",371,"Wakatobi","Kabupaten","Regency",NA,NA
+372,106,"IDN","Indonesia",30,"Sulawesi Utara",372,"Bitung","Kotamadya","Municipality",NA,"Kota Bitung"
+373,106,"IDN","Indonesia",30,"Sulawesi Utara",373,"Bolaang Mongondow","Kabupaten","Regency",NA,"Bolaang Mangondow|Bolaang Mengondow|"
+374,106,"IDN","Indonesia",30,"Sulawesi Utara",374,"Kepulauan Sangihe Talaud","Kabupaten","Regency",NA,"Kepulauan Talaud"
+375,106,"IDN","Indonesia",30,"Sulawesi Utara",375,"Manado","Kotamadya","Municipality",NA,"Kota Manado"
+376,106,"IDN","Indonesia",30,"Sulawesi Utara",376,"Minahasa Selatan","Kabupaten","Regency",NA,NA
+377,106,"IDN","Indonesia",30,"Sulawesi Utara",377,"Minahasa Utara","Kabupaten","Regency",NA,"North Minahasa"
+378,106,"IDN","Indonesia",30,"Sulawesi Utara",378,"Minahasa","Kabupaten","Regency",NA,NA
+379,106,"IDN","Indonesia",30,"Sulawesi Utara",379,"Sangihe Talaud","Kabupaten","Regency",NA,"Kepulauan Talaud"
+380,106,"IDN","Indonesia",30,"Sulawesi Utara",380,"Tomohon","Kabupaten","Regency",NA,NA
+381,106,"IDN","Indonesia",31,"Sumatera Barat",381,"Agam","Kabupaten","Regency",NA,NA
+382,106,"IDN","Indonesia",31,"Sumatera Barat",382,"Bukittinggi","Kotamadya","Municipality",NA,"Kota Bukittinggi"
+383,106,"IDN","Indonesia",31,"Sumatera Barat",383,"Dharmasraya","Kabupaten","Regency",NA,NA
+384,106,"IDN","Indonesia",31,"Sumatera Barat",384,"Kepulauan Mentawai","Kabupaten","Regency",NA,NA
+385,106,"IDN","Indonesia",31,"Sumatera Barat",385,"Kota Solok","Kotamadya","Municipality",NA,"Solok"
+386,106,"IDN","Indonesia",31,"Sumatera Barat",386,"Lima Puluh Koto","Kabupaten","Regency",NA,NA
+387,106,"IDN","Indonesia",31,"Sumatera Barat",387,"Padang Panjang","Kotamadya","Municipality",NA,"Kota Padang Panjang"
+388,106,"IDN","Indonesia",31,"Sumatera Barat",388,"Padang Pariaman","Kabupaten","Regency",NA,NA
+389,106,"IDN","Indonesia",31,"Sumatera Barat",389,"Padang","Kotamadya","Municipality",NA,"Kota Padang"
+390,106,"IDN","Indonesia",31,"Sumatera Barat",390,"Pariaman","Kotamadya","Municipality",NA,"Kota Pariaman"
+391,106,"IDN","Indonesia",31,"Sumatera Barat",391,"Pasaman Barat","Kabupaten","Regency",NA,NA
+392,106,"IDN","Indonesia",31,"Sumatera Barat",392,"Pasaman","Kabupaten","Regency",NA,NA
+393,106,"IDN","Indonesia",31,"Sumatera Barat",393,"Payakumbuh","Kotamadya","Municipality",NA,"Kota Payakumbuh|Payahkumbuh"
+394,106,"IDN","Indonesia",31,"Sumatera Barat",394,"Pesisir Selatan","Kabupaten","Regency",NA,NA
+395,106,"IDN","Indonesia",31,"Sumatera Barat",395,"Sawah Lunto","Kotamadya","Municipality",NA,"Kota Sawah Lunto"
+396,106,"IDN","Indonesia",31,"Sumatera Barat",396,"Sawahlunto","Kabupaten","Regency",NA,"Sijunjung"
+397,106,"IDN","Indonesia",31,"Sumatera Barat",397,"Solok Selatan","Kabupaten","Regency",NA,NA
+398,106,"IDN","Indonesia",31,"Sumatera Barat",398,"Solok","Kabupaten","Regency",NA,NA
+399,106,"IDN","Indonesia",31,"Sumatera Barat",399,"Tanah Datar","Kabupaten","Regency",NA,NA
+400,106,"IDN","Indonesia",32,"Sumatera Selatan",400,"Banyuasin","Kabupaten","Regency",NA,"Banyu Asin"
+401,106,"IDN","Indonesia",32,"Sumatera Selatan",401,"Lahat","Kabupaten","Regency",NA,NA
+402,106,"IDN","Indonesia",32,"Sumatera Selatan",402,"Lubuk Linggau","Kotamadya","Municipality",NA,"Kota Lubuk Linggau"
+403,106,"IDN","Indonesia",32,"Sumatera Selatan",403,"Muara Enim","Kabupaten","Regency",NA,NA
+404,106,"IDN","Indonesia",32,"Sumatera Selatan",404,"Musi Banyu Asin","Kabupaten","Regency",NA,NA
+405,106,"IDN","Indonesia",32,"Sumatera Selatan",405,"Musi Rawas","Kabupaten","Regency",NA,NA
+406,106,"IDN","Indonesia",32,"Sumatera Selatan",406,"Ogan Ilir","Kabupaten","Regency",NA,"Ogan Kemering Ilir|Ogan Komering Hilir"
+407,106,"IDN","Indonesia",32,"Sumatera Selatan",407,"Ogan Komering Ilir","Kabupaten","Regency",NA,"Ogan Kemering Ilir|Ogan Komering Hilir"
+408,106,"IDN","Indonesia",32,"Sumatera Selatan",408,"Ogan Komering Ulu Selatan","Kabupaten","Regency",NA,NA
+409,106,"IDN","Indonesia",32,"Sumatera Selatan",409,"Ogan Komering Ulu Timur","Kabupaten","Regency",NA,NA
+410,106,"IDN","Indonesia",32,"Sumatera Selatan",410,"Ogan Komering Ulu","Kabupaten","Regency",NA,NA
+411,106,"IDN","Indonesia",32,"Sumatera Selatan",411,"Pagar Alam","Kabupaten","Regency",NA,NA
+412,106,"IDN","Indonesia",32,"Sumatera Selatan",412,"Palembang","Kotamadya","Municipality",NA,"Kota Palembang"
+413,106,"IDN","Indonesia",32,"Sumatera Selatan",413,"Prabumulih","Kotamadya","Municipality",NA,"Kota Prabumulih"
+414,106,"IDN","Indonesia",33,"Sumatera Utara",414,"Asahan","Kabupaten","Regency",NA,NA
+415,106,"IDN","Indonesia",33,"Sumatera Utara",415,"Binjai","Kotamadya","Municipality",NA,"Kota Binjai"
+416,106,"IDN","Indonesia",33,"Sumatera Utara",416,"Dairi","Kabupaten","Regency",NA,NA
+417,106,"IDN","Indonesia",33,"Sumatera Utara",417,"Deli Serdang","Kabupaten","Regency",NA,NA
+418,106,"IDN","Indonesia",33,"Sumatera Utara",418,"Humbang Hasundutan","Kabupaten","Regency",NA,NA
+419,106,"IDN","Indonesia",33,"Sumatera Utara",419,"Karo","Kabupaten","Regency",NA,NA
+420,106,"IDN","Indonesia",33,"Sumatera Utara",420,"Labuhan Batu","Kabupaten","Regency",NA,NA
+421,106,"IDN","Indonesia",33,"Sumatera Utara",421,"Lake Toba","Water body","Water body",NA,NA
+422,106,"IDN","Indonesia",33,"Sumatera Utara",422,"Langkat","Kabupaten","Regency",NA,NA
+423,106,"IDN","Indonesia",33,"Sumatera Utara",423,"Mandailing Natal","Kabupaten","Regency",NA,NA
+424,106,"IDN","Indonesia",33,"Sumatera Utara",424,"Medan","Kotamadya","Municipality",NA,"Kota Medan"
+425,106,"IDN","Indonesia",33,"Sumatera Utara",425,"Nias Selatan","Kabupaten","Regency",NA,NA
+426,106,"IDN","Indonesia",33,"Sumatera Utara",426,"Nias","Kabupaten","Regency",NA,NA
+427,106,"IDN","Indonesia",33,"Sumatera Utara",427,"Padang Sidempuan","Kotamadya","Municipality",NA,"Kota Padang Sidempuan"
+428,106,"IDN","Indonesia",33,"Sumatera Utara",428,"Pakpak Bharat","Kabupaten","Regency",NA,NA
+429,106,"IDN","Indonesia",33,"Sumatera Utara",429,"Pematang Siantar","Kotamadya","Municipality",NA,"Kota Pematang Siantar"
+430,106,"IDN","Indonesia",33,"Sumatera Utara",430,"Samosir","Kabupaten","Regency",NA,NA
+431,106,"IDN","Indonesia",33,"Sumatera Utara",431,"Serdang Bedagai","Kabupaten","Regency",NA,NA
+432,106,"IDN","Indonesia",33,"Sumatera Utara",432,"Sibolga","Kotamadya","Municipality",NA,"Kota Sibolga"
+433,106,"IDN","Indonesia",33,"Sumatera Utara",433,"Simalungun","Kabupaten","Regency",NA,NA
+434,106,"IDN","Indonesia",33,"Sumatera Utara",434,"Tanjung Balai","Kotamadya","Municipality",NA,"Kota Tanjung Balai"
+435,106,"IDN","Indonesia",33,"Sumatera Utara",435,"Tapanuli Selatan","Kabupaten","Regency",NA,"South Tapanuli"
+436,106,"IDN","Indonesia",33,"Sumatera Utara",436,"Tapanuli Tengah","Kabupaten","Regency",NA,"Central Tapanuli"
+437,106,"IDN","Indonesia",33,"Sumatera Utara",437,"Tapanuli Utara","Kabupaten","Regency",NA,NA
+438,106,"IDN","Indonesia",33,"Sumatera Utara",438,"Tebing Tinggi","Kotamadya","Municipality",NA,"Kota Tebing Tinggi"
+439,106,"IDN","Indonesia",33,"Sumatera Utara",439,"Toba Samosir","Kabupaten","Regency",NA,NA
+440,106,"IDN","Indonesia",34,"Yogyakarta",440,"Bantul","Kabupaten","Regency",NA,NA
+441,106,"IDN","Indonesia",34,"Yogyakarta",441,"Gunung Kidul","Kabupaten","Regency",NA,NA
+442,106,"IDN","Indonesia",34,"Yogyakarta",442,"Kulon Progo","Kabupaten","Regency",NA,NA
+443,106,"IDN","Indonesia",34,"Yogyakarta",443,"Sleman","Kabupaten","Regency",NA,NA
+444,106,"IDN","Indonesia",34,"Yogyakarta",444,"Yogyakarta","Kotamadya","Municipality",NA,"Kota Yogyakarta"
