@@ -4,6 +4,7 @@ from datetime import datetime
 import argparse
 
 
+# Convert timestamp hh:mm:ss into seconds
 def hms_second(hms):
     return (
         int(hms.split(":")[0]) * 3600
@@ -12,12 +13,13 @@ def hms_second(hms):
     )
 
 
+# For logging purposes
 def get_time():
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
 if __name__ == "__main__":
-    # Replace the filename below.
+    # Setup the Argument Parser
     parser = argparse.ArgumentParser()
 
     # Adding optional argument
@@ -37,22 +39,23 @@ if __name__ == "__main__":
 
     dict_args = dict(parser.parse_args()._get_kwargs())
 
-    video_dir = dict_args["dir"]  # "D:/Videos/LosslessCut/"
-    video_file = (
-        video_dir + dict_args["file"]
-    )  # "Marvel's Spider-Man 2_20231020120405-00.00.00.000-00.24.11.784.mp4"
+    video_dir = dict_args["dir"]
+    video_file = video_dir + dict_args["file"]
 
     # Check total duration
     video = VideoFileClip(video_file)
     duration = video.duration
     print(f"{get_time()}\tVideo duration (s):{duration}")
 
+    # Get the times
     times = dict_args["times"]
 
     times = [x.strip() for x in times]
 
+    # Loop through all the timestamps that you want to split the video
     starttime = 0  # start time in seconds
     for idx, time in enumerate(times):
+        # Ensure the timestamp format is correct
         assert time.count(":") == 2
         assert len(time) == 8
 
@@ -70,7 +73,7 @@ if __name__ == "__main__":
             )
             + "-part"
             + str(idx + 1)
-            + ".mp4",
+            + ".mp4",  # rename the file however you want
         )
         print(f"{get_time()}\t[DONE] Clip from {starttime} until {endtime}")
     # the last piece
@@ -84,6 +87,6 @@ if __name__ == "__main__":
             )
             + "-part"
             + str(idx + 2)
-            + ".mp4",
+            + ".mp4",  # rename the file however you want
         )
         print(f"{get_time()}\t[DONE] Clip from {endtime} until {duration}")
