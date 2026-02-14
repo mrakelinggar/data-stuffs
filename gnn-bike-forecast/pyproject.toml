@@ -1,0 +1,55 @@
+[project]
+name = "gnn-bike-forecast"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "beautifulsoup4>=4.14.3",
+    "fastparquet>=2025.12.0",
+    "folium>=0.20.0",
+    "geopandas>=1.1.1",
+    "loguru>=0.7.3",
+    "lxml>=6.0.2",
+    "matplotlib>=3.10.7",
+    "mlflow>=3.9.0",
+    "numpy>=2.3.5",
+    "pandas>=2.3.3",
+    "plotly>=6.5.0",
+    "prophet>=1.3.0",
+    "pyarrow>=22.0.0",
+    "pydeck>=0.9.1",
+    "python-dotenv>=1.2.1",
+    "pyyaml>=6.0.3",
+    "requests>=2.32.5",
+    "scikit-learn>=1.8.0",
+    "seaborn>=0.13.2",
+    "shapely>=2.1.2",
+    "statsmodels>=0.14.6",
+    "streamlit>=1.54.0",
+    "torch>=2.10.0",
+    "torch-geometric>=2.7.0",
+    "torchaudio>=2.10.0",
+    "torchvision>=0.25.0",
+    "tqdm>=4.67.1",
+]
+[tool.uv]
+extra-build-dependencies.torch-scatter = ["torch"]
+extra-build-dependencies.torch-sparse = ["torch"]
+
+[dependency-groups]
+dev = [
+    "black>=26.1.0",
+    "ipykernel>=7.1.0",
+    "ipywidgets>=8.1.8",
+    "jupyter>=1.1.1",
+    "mypy>=1.19.1",
+    "pandas-stubs>=3.0.0.260204",
+    "pytest>=9.0.2",
+    "pytest-cov>=7.0.0",
+    "pytest-mock>=3.15.1",
+    "ruff>=0.15.1",
+    "types-pyyaml>=6.0.12.20250915",
+    "types-requests>=2.32.4.20260107",
+    "types-tqdm>=4.67.3.20260205",
+]
