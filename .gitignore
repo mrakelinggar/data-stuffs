@@ -1,1 +1,40 @@
+# Data directories across all projects
+**/data/
+**/data/**
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+**/__pycache__/
+*.so
+.Python
+**/venv/
+**/.venv/
+*.egg-info/
+dist/
+build/
+
+# Jupyter
+**/.ipynb_checkpoints/
+
+# MLflow
+**/mlruns/
+**/mlartifacts/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+
+# Environment
 .env
+**/.env.local
+
+# Logs
+*.log
+**/logs/
+EOF
