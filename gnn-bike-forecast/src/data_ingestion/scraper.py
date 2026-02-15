@@ -10,7 +10,7 @@ from loguru import logger
 class S3BikeScraper:
     """Scraper for Citi Bike Public S3 bucket"""
     
-    S3_BUCKET_URL = "https://s3.amazonaws.com/tripdata/index.html"
+    S3_BUCKET_URL = "https://s3.amazonaws.com/tripdata"
     NYC_PATTERN = r"^\d{6}-citibike-tripdata\.zip$"  # YYYYMM-citibike-tripdata.csv.zip
     JC_PATTERN = r"^JC-"  # Jersey City prefix to exclude
     
