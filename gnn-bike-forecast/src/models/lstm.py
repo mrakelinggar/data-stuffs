@@ -46,22 +46,12 @@ from tqdm import tqdm
 
 from data_loader import LSTM_SEQ_LEN, LSTMDataset, build_dataloaders
 from evaluate import full_evaluation, log_metrics_to_mlflow
+from mlflow_utils import tag_run_provenance
+from utils import get_device, set_seed
 
 logger = logging.getLogger(__name__)
 
 EXPERIMENT_NAME = "bike-demand-forecasting"
-
-
-# ---------------------------------------------------------------------------
-# Device
-# ---------------------------------------------------------------------------
-
-def get_device() -> torch.device:
-    if torch.backends.mps.is_available():
-        return torch.device("mps")
-    if torch.cuda.is_available():
-        return torch.device("cuda")
-    return torch.device("cpu")
 
 
 # ---------------------------------------------------------------------------
@@ -206,6 +196,7 @@ def run_lstm(
     patience:    int   = 5,
     seq_len:     int   = LSTM_SEQ_LEN,
     save_dir:    Path  = Path("models"),
+    seed:        int   = 42,
     log_to_mlflow: bool = True,
 ) -> None:
     """
@@ -223,14 +214,17 @@ def run_lstm(
     patience    : early stopping patience (epochs without val MAE improvement)
     seq_len     : lookback window length
     save_dir    : directory to save best model checkpoint
+    seed        : random seed for reproducibility
     log_to_mlflow : whether to log to MLflow
     """
+    set_seed(seed)
+
     device = get_device()
     logger.info("Device: %s", device)
 
     # --- Data ---
     logger.info("Building LSTM DataLoaders...")
-    train_loader, val_loader, _ = build_dataloaders(
+    train_loader, val_loader, test_loader = build_dataloaders(
         data_dir   = data_dir,
         batch_size = batch_size,
         num_workers = 0,      # 0 avoids MPS/multiprocessing conflicts
@@ -238,14 +232,17 @@ def run_lstm(
         seq_len    = seq_len,
     )
 
-    # Retrieve val metadata for full_evaluation (station_idx, timestamps)
+    # Retrieve val/test metadata for full_evaluation (station_idx, timestamps)
     import pandas as pd
     val_feat       = pd.read_parquet(data_dir / "features_val.parquet")
-    # LSTM val dataset skips first seq_len-1 rows per station — align metadata
+    test_feat      = pd.read_parquet(data_dir / "features_test.parquet")
+    # LSTM val/test datasets skip first seq_len-1 rows per station — align metadata
     val_ds         = LSTMDataset(data_dir, "val", seq_len=seq_len)
+    test_ds        = LSTMDataset(data_dir, "test", seq_len=seq_len)
     # Build station_idx and timestamps aligned to LSTM samples
     # Each sample (t, n) maps to timestamp at t + seq_len - 1
-    val_meta = _build_lstm_metadata(val_feat, val_ds, seq_len)
+    val_meta  = _build_lstm_metadata(val_feat, val_ds, seq_len)
+    test_meta = _build_lstm_metadata(test_feat, test_ds, seq_len)
 
     # --- Model ---
     input_size = len(__import__("data_loader").LSTM_FEATURE_COLS)
@@ -280,6 +277,7 @@ def run_lstm(
         mlflow.start_run(run_name=f"lstm_{loss_fn}")
         mlflow.set_tag("model_name", "lstm")
         mlflow.set_tag("phase", "lstm")
+        tag_run_provenance(data_dir, seed)
         mlflow.log_params({
             "model_type":  "lstm",
             "loss_fn": loss_fn,
@@ -293,6 +291,7 @@ def run_lstm(
             "patience":    patience,
             "n_params":    n_params,
             "device":      str(device),
+            "seed":        seed,
         })
 
     # --- Training loop ---
@@ -346,12 +345,12 @@ def run_lstm(
                 )
                 break
 
-    # --- Load best checkpoint and run full evaluation ---
+    # --- Load best checkpoint and run full evaluation (val + test) ---
     logger.info("Loading best checkpoint (epoch %d)...", best_epoch)
     model.load_state_dict(torch.load(ckpt_path, map_location=device))
+
     y_true, y_pred = evaluate_epoch(model, val_loader, device)
     y_pred         = np.clip(y_pred, 0, None)
-
     result = full_evaluation(
         y_true      = y_true,
         y_pred      = y_pred,
@@ -361,23 +360,44 @@ def run_lstm(
         split       = "val",
     )
 
+    y_true_test, y_pred_test = evaluate_epoch(model, test_loader, device)
+    y_pred_test              = np.clip(y_pred_test, 0, None)
+    test_result = full_evaluation(
+        y_true      = y_true_test,
+        y_pred      = y_pred_test,
+        station_idx = test_meta["station_idx"],
+        timestamps  = test_meta["timestamps"],
+        model_name  = "lstm",
+        split       = "test",
+    )
+
     if log_to_mlflow:
-        log_metrics_to_mlflow(result, prefix="best_")
         mlflow.log_param("best_epoch", best_epoch)
 
-        # Save artifacts
-        result.by_station.to_csv("/tmp/lstm_by_station.csv", index=False)
-        result.by_hour.to_csv("/tmp/lstm_by_hour.csv",       index=False)
-        mlflow.log_artifact("/tmp/lstm_by_station.csv", artifact_path="eval")
-        mlflow.log_artifact("/tmp/lstm_by_hour.csv",    artifact_path="eval")
-        mlflow.log_artifact(str(ckpt_path),             artifact_path="model")
+        for r in (result, test_result):
+            log_metrics_to_mlflow(r, prefix="best_")
+
+            # Save artifacts, split-suffixed so val/test don't overwrite each other
+            station_csv = f"/tmp/lstm_{r.split}_by_station.csv"
+            hour_csv    = f"/tmp/lstm_{r.split}_by_hour.csv"
+            r.by_station.to_csv(station_csv, index=False)
+            r.by_hour.to_csv(hour_csv, index=False)
+            mlflow.log_artifact(station_csv, artifact_path="eval")
+            mlflow.log_artifact(hour_csv, artifact_path="eval")
+
+        mlflow.log_artifact(str(ckpt_path), artifact_path="model")
         mlflow.end_run()
 
     print(
-        f"\nLSTM | MAE={result.metrics.mae:.4f}  "
+        f"\nLSTM | val  MAE={result.metrics.mae:.4f}  "
         f"RMSE={result.metrics.rmse:.4f}  "
         f"MAPE={result.metrics.mape:.2f}%  "
         f"(best epoch={best_epoch})"
+    )
+    print(
+        f"LSTM | test MAE={test_result.metrics.mae:.4f}  "
+        f"RMSE={test_result.metrics.rmse:.4f}  "
+        f"MAPE={test_result.metrics.mape:.2f}%"
     )
 
 
@@ -437,6 +457,7 @@ def main() -> None:
     parser.add_argument("--patience",    type=int,   default=5)
     parser.add_argument("--loss-fn", choices=["mse", "poisson"], default="poisson")
     parser.add_argument("--save-dir",    type=Path,  default=Path("models"))
+    parser.add_argument("--seed",        type=int,   default=42)
     parser.add_argument("--no-mlflow",   action="store_true")
     args = parser.parse_args()
 
@@ -452,6 +473,7 @@ def main() -> None:
         batch_size    = args.batch_size,
         max_epochs    = args.max_epochs,
         patience      = args.patience,
+        seed          = args.seed,
         save_dir      = args.save_dir,
         log_to_mlflow = not args.no_mlflow,
     )

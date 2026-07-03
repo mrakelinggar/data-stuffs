@@ -35,6 +35,8 @@ from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 from torch_geometric.data import Data
 
+from utils import get_validated_snapshot_id
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -138,6 +140,8 @@ def _load_split(
     station_idx : int64 (T * N,)    — 0-based station index
     timestamps  : (T * N,)          — pandas Timestamps, used for sequence building
     """
+    get_validated_snapshot_id(data_dir)
+
     feat_df = pd.read_parquet(data_dir / f"features_{split}.parquet")
     tgt_df  = pd.read_parquet(data_dir / f"targets_{split}.parquet")
 

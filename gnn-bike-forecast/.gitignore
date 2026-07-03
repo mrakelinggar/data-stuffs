@@ -1,0 +1,8 @@
+local-notes/
+mlflow.db
+/models/
+reports/
+.agents/
+skills-lock.json
+CLAUDE.md
+ROADMAP.md

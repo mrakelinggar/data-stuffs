@@ -68,23 +68,13 @@ from data_loader import (
     load_adj,
 )
 from evaluate import compute_metrics, full_evaluation, log_metrics_to_mlflow
+from mlflow_utils import tag_run_provenance
+from utils import get_device, set_seed
 
 logger = logging.getLogger(__name__)
 
 EXPERIMENT_NAME = "bike-demand-forecasting"
 ADJ_VARIANTS    = ("knn", "flow", "combined")
-
-
-# ---------------------------------------------------------------------------
-# Device
-# ---------------------------------------------------------------------------
-
-def get_device() -> torch.device:
-    if torch.backends.mps.is_available():
-        return torch.device("mps")
-    if torch.cuda.is_available():
-        return torch.device("cuda")
-    return torch.device("cpu")
 
 
 # ---------------------------------------------------------------------------
@@ -388,6 +378,7 @@ def run_gcn(
     max_epochs:    int   = 50,
     patience:      int   = 5,
     save_dir:      Path  = Path("models"),
+    seed:          int   = 42,
     log_to_mlflow: bool  = True,
 ) -> None:
     """
@@ -403,8 +394,11 @@ def run_gcn(
     max_epochs   : maximum training epochs
     patience     : early stopping patience
     save_dir     : directory to save best model checkpoint
+    seed         : random seed for reproducibility
     log_to_mlflow: whether to log to MLflow
     """
+    set_seed(seed)
+
     run_name = f"gcn_{adj_variant}_{loss_fn}"
     device   = get_device()
     logger.info("Running %s | device=%s", run_name, device)
@@ -418,8 +412,10 @@ def run_gcn(
     logger.info("Building graph datasets...")
     train_ds = build_graph_dataset(data_dir, "train", adj_tensor)
     val_ds   = build_graph_dataset(data_dir, "val",   adj_tensor)
+    test_ds  = build_graph_dataset(data_dir, "test",  adj_tensor)
 
-    val_meta = _build_gcn_metadata(data_dir, "val")
+    val_meta  = _build_gcn_metadata(data_dir, "val")
+    test_meta = _build_gcn_metadata(data_dir, "test")
 
     # --- Model ---
     in_channels = len(FEATURE_COLS)
@@ -453,6 +449,7 @@ def run_gcn(
         mlflow.start_run(run_name=run_name)
         mlflow.set_tag("model_name", run_name)
         mlflow.set_tag("phase", "gcn")
+        tag_run_provenance(data_dir, seed)
         mlflow.log_params({
             "model_type":   "gcn",
             "adj_variant":  adj_variant,
@@ -465,6 +462,7 @@ def run_gcn(
             "n_params":     n_params,
             "in_channels":  in_channels,
             "device":       str(device),
+            "seed":         seed,
         })
 
     # --- Training loop ---
@@ -522,9 +520,9 @@ def run_gcn(
     # --- Load best checkpoint and run full evaluation ---
     logger.info("Loading best checkpoint (epoch %d)...", best_epoch)
     model.load_state_dict(torch.load(ckpt_path, map_location=device))
+
     y_true, y_pred = evaluate_epoch(model, val_ds, device)
     y_pred         = np.clip(y_pred, 0, None)
-
     result = full_evaluation(
         y_true      = y_true,
         y_pred      = y_pred,
@@ -534,22 +532,43 @@ def run_gcn(
         split       = "val",
     )
 
+    y_true_test, y_pred_test = evaluate_epoch(model, test_ds, device)
+    y_pred_test              = np.clip(y_pred_test, 0, None)
+    test_result = full_evaluation(
+        y_true      = y_true_test,
+        y_pred      = y_pred_test,
+        station_idx = test_meta["station_idx"],
+        timestamps  = test_meta["timestamps"],
+        model_name  = run_name,
+        split       = "test",
+    )
+
     if log_to_mlflow:
-        log_metrics_to_mlflow(result, prefix="best_")
         mlflow.log_param("best_epoch", best_epoch)
 
-        result.by_station.to_csv(f"/tmp/{run_name}_by_station.csv", index=False)
-        result.by_hour.to_csv(f"/tmp/{run_name}_by_hour.csv",       index=False)
-        mlflow.log_artifact(f"/tmp/{run_name}_by_station.csv", artifact_path="eval")
-        mlflow.log_artifact(f"/tmp/{run_name}_by_hour.csv",    artifact_path="eval")
-        mlflow.log_artifact(str(ckpt_path),                    artifact_path="model")
+        for r in (result, test_result):
+            log_metrics_to_mlflow(r, prefix="best_")
+
+            station_csv = f"/tmp/{run_name}_{r.split}_by_station.csv"
+            hour_csv    = f"/tmp/{run_name}_{r.split}_by_hour.csv"
+            r.by_station.to_csv(station_csv, index=False)
+            r.by_hour.to_csv(hour_csv, index=False)
+            mlflow.log_artifact(station_csv, artifact_path="eval")
+            mlflow.log_artifact(hour_csv, artifact_path="eval")
+
+        mlflow.log_artifact(str(ckpt_path), artifact_path="model")
         mlflow.end_run()
 
     print(
-        f"\n{run_name} | MAE={result.metrics.mae:.4f}  "
+        f"\n{run_name} | val  MAE={result.metrics.mae:.4f}  "
         f"RMSE={result.metrics.rmse:.4f}  "
         f"MAPE={result.metrics.mape:.2f}%  "
         f"(best epoch={best_epoch})"
+    )
+    print(
+        f"{run_name} | test MAE={test_result.metrics.mae:.4f}  "
+        f"RMSE={test_result.metrics.rmse:.4f}  "
+        f"MAPE={test_result.metrics.mape:.2f}%"
     )
 
 
@@ -571,6 +590,7 @@ def main() -> None:
     parser.add_argument("--max-epochs",  type=int,   default=50)
     parser.add_argument("--patience",    type=int,   default=5)
     parser.add_argument("--save-dir",    type=Path,  default=Path("models"))
+    parser.add_argument("--seed",        type=int,   default=42)
     parser.add_argument("--no-mlflow",   action="store_true")
     args = parser.parse_args()
 
@@ -589,6 +609,7 @@ def main() -> None:
             max_epochs    = args.max_epochs,
             patience      = args.patience,
             save_dir      = args.save_dir,
+            seed          = args.seed,
             log_to_mlflow = not args.no_mlflow,
         )
 
