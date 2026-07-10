@@ -212,6 +212,9 @@ class BikeDataset(Dataset):
 # Dataset: LSTM (sequence of LSTM_SEQ_LEN steps per station)
 # ---------------------------------------------------------------------------
 
+_PRIOR_SPLIT: dict[str, str] = {"val": "train", "test": "val"}
+
+
 class LSTMDataset(Dataset):
     """
     Sequence dataset for the LSTM model.
@@ -223,8 +226,11 @@ class LSTMDataset(Dataset):
         x_seq : FloatTensor (seq_len, F_lstm)  — sequence of compact features
         y     : FloatTensor ()                  — target at t + seq_len - 1
 
-    The dataset iterates over stations × valid timestamps, so sample count =
-    N_stations × (T - seq_len + 1).
+    For val/test, the preceding split's last `seq_len - 1` timestamps are
+    borrowed as read-only input history (never a scored target) so every
+    sample count equals N_stations × T_own — matching BikeDataset/GCN, which
+    score every row in a split. Train has no preceding split to borrow from,
+    so it keeps the original N_stations × (T - seq_len + 1) behavior.
     """
 
     def __init__(
@@ -234,10 +240,69 @@ class LSTMDataset(Dataset):
         seq_len: int = LSTM_SEQ_LEN,
     ) -> None:
         data_dir = Path(data_dir)
-        features, targets, station_idx, timestamps = _load_split(data_dir, split)
+        own_features, own_targets, own_station_idx, own_timestamps = _load_split(data_dir, split)
 
         self.seq_len = seq_len
         lstm_cols = [FEATURE_COLS.index(c) for c in LSTM_FEATURE_COLS]
+
+        borrow_len = seq_len - 1
+        prior_split = _PRIOR_SPLIT.get(split)
+
+        if prior_split is not None and borrow_len > 0:
+            p_features, _, p_station_idx, p_timestamps = _load_split(data_dir, prior_split)
+            p_unique_times = np.sort(np.unique(p_timestamps))
+            tail_times = p_unique_times[-borrow_len:]
+            tail_mask = np.isin(p_timestamps, tail_times)
+
+            # Two assumptions make the borrowing arithmetic below safe; both
+            # are asserted explicitly rather than left implicit, since a
+            # silent violation would misalign features/targets rather than
+            # raise:
+            #   1. Same station universe in both splits -- if it ever
+            #      diverges (e.g. a future station-universe change applied
+            #      unevenly across splits), N would be derived from the
+            #      union rather than the true own-split count, producing
+            #      phantom scored samples for a station absent from the
+            #      current split.
+            own_stations_set = set(np.unique(own_station_idx))
+            prior_tail_stations_set = set(np.unique(p_station_idx[tail_mask]))
+            if not prior_tail_stations_set <= own_stations_set:
+                raise AssertionError(
+                    f"LSTMDataset[{split}]: prior split '{prior_split}' has "
+                    f"stations not present in '{split}': "
+                    f"{sorted(prior_tail_stations_set - own_stations_set)} -- "
+                    "borrowing assumes an identical station universe across "
+                    "splits (see CLAUDE.md's station-universe-stability note)."
+                )
+            #   2. The borrowed tail is strictly earlier than the current
+            #      split's own timestamps -- true today because splits are
+            #      fixed, non-overlapping calendar windows, but not checked
+            #      anywhere upstream. A violation would silently corrupt
+            #      anchor_timestamps' 1:1 correspondence to real own-split
+            #      timestamps (used by _build_lstm_metadata's feat_df
+            #      lookup).
+            if tail_times.max() >= own_timestamps.min():
+                raise AssertionError(
+                    f"LSTMDataset[{split}]: borrowed tail from '{prior_split}' "
+                    f"(max={tail_times.max()}) is not strictly earlier than "
+                    f"'{split}'s own timestamps (min={own_timestamps.min()}) -- "
+                    "splits may overlap or be out of chronological order."
+                )
+
+            features    = np.concatenate([p_features[tail_mask], own_features])
+            station_idx = np.concatenate([p_station_idx[tail_mask], own_station_idx])
+            timestamps  = np.concatenate([p_timestamps[tail_mask], own_timestamps])
+            # Borrowed rows are read-only input history for the sequence's
+            # early timesteps; their targets are never indexed by
+            # __getitem__ (see the anchor-count assertion below), so zero
+            # placeholders are safe and avoid loading the prior split's
+            # targets parquet at all.
+            borrowed_targets = np.zeros(int(tail_mask.sum()), dtype=np.float32)
+            targets = np.concatenate([borrowed_targets, own_targets])
+        else:
+            features, targets, station_idx, timestamps = (
+                own_features, own_targets, own_station_idx, own_timestamps,
+            )
 
         # Pivot to (T, N, F) tensors
         # Determine unique timestamps and stations in sorted order
@@ -249,8 +314,8 @@ class LSTMDataset(Dataset):
         F_lstm = len(LSTM_FEATURE_COLS)
 
         logger.info(
-            "LSTMDataset [%s] | T=%d timestamps | N=%d stations | seq_len=%d",
-            split, T, N, seq_len,
+            "LSTMDataset [%s] | T=%d timestamps (borrowed=%d) | N=%d stations | seq_len=%d",
+            split, T, T - len(np.unique(own_timestamps)), N, seq_len,
         )
 
         # Build time→row and station→col lookup
@@ -280,6 +345,28 @@ class LSTMDataset(Dataset):
             raise ValueError(
                 f"seq_len={seq_len} >= T={T}; not enough timesteps for split '{split}'"
             )
+
+        # When a prior split was borrowed, n_valid must equal the split's own
+        # timestamp count exactly: borrowing exactly `seq_len - 1` prior-split
+        # timestamps as read-only history makes this hold algebraically
+        # (T = borrow_len + T_own => n_valid = T_own). Asserted explicitly so
+        # a future edit that breaks the invariant fails loudly instead of
+        # silently scoring borrowed rows as if they were the current split's
+        # own targets. Train (no prior split) keeps the original formula, so
+        # n_valid < T_own there is expected, not a bug.
+        own_T = len(np.unique(own_timestamps))
+        if prior_split is not None and borrow_len > 0 and self.n_valid != own_T:
+            raise AssertionError(
+                f"LSTMDataset[{split}] anchor count {self.n_valid} != expected "
+                f"{own_T} own timestamps — borrowed prior-split rows may be "
+                "leaking into scored anchors."
+            )
+
+        # Each anchor's target timestamp, in the same time-major order
+        # __getitem__ iterates — the single source of truth for downstream
+        # metadata alignment (see _build_lstm_metadata in lstm.py), instead
+        # of that function re-deriving the seq_len offset independently.
+        self.anchor_timestamps = unique_times[seq_len - 1:]
 
         logger.info(
             "LSTMDataset [%s] | valid windows=%d | total samples=%d",

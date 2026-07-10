@@ -46,7 +46,7 @@ from tqdm import tqdm
 
 from data_loader import LSTM_SEQ_LEN, LSTMDataset, build_dataloaders
 from evaluate import full_evaluation, log_metrics_to_mlflow
-from mlflow_utils import tag_run_provenance
+from mlflow_utils import log_segment_artifacts_to_mlflow, tag_run_provenance
 from utils import get_device, set_seed
 
 logger = logging.getLogger(__name__)
@@ -159,9 +159,17 @@ def evaluate_epoch(
     model:  BikeDemanLSTM,
     loader: DataLoader,
     device: torch.device,
+    loss_fn: str = "poisson",
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Run inference over a DataLoader.
+
+    Parameters
+    ----------
+    loss_fn : "poisson" or "mse" -- determines how the model's raw output is
+              turned into a predicted rate. Poisson emits a raw log-rate
+              (recovered via exp()); MSE emits a non-negative rate directly
+              from its Softplus head (no transform needed).
 
     Returns
     -------
@@ -177,7 +185,15 @@ def evaluate_epoch(
         all_true.append(y.numpy())
         all_pred.append(pred.cpu().numpy())
 
-    return np.concatenate(all_true), np.concatenate(all_pred)
+    y_true    = np.concatenate(all_true)
+    y_pred_raw = np.concatenate(all_pred)
+
+    if loss_fn == "poisson":
+        y_pred = np.exp(y_pred_raw)   # recover rate from raw log-rate
+    else:
+        y_pred = y_pred_raw          # Softplus head already guarantees >= 0
+
+    return y_true, y_pred
 
 
 # ---------------------------------------------------------------------------
@@ -232,32 +248,40 @@ def run_lstm(
         seq_len    = seq_len,
     )
 
-    # Retrieve val/test metadata for full_evaluation (station_idx, timestamps)
+    # Retrieve train/val/test metadata for full_evaluation (station_idx, timestamps,
+    # lag_24, cluster). train_lag24 feeds the volume-tier tercile cutoffs -- computed
+    # once here and reused unchanged for train/val/test scoring.
     import pandas as pd
+    train_feat     = pd.read_parquet(data_dir / "features_train.parquet")
     val_feat       = pd.read_parquet(data_dir / "features_val.parquet")
     test_feat      = pd.read_parquet(data_dir / "features_test.parquet")
-    # LSTM val/test datasets skip first seq_len-1 rows per station — align metadata
+    train_lag24    = train_feat["lag_24"].values
+    # LSTM val/test datasets borrow the preceding split's tail as read-only
+    # input history (ROADMAP Phase 4), so every own row is scored -- metadata
+    # alignment below reads ds.anchor_timestamps rather than re-deriving it.
     val_ds         = LSTMDataset(data_dir, "val", seq_len=seq_len)
     test_ds        = LSTMDataset(data_dir, "test", seq_len=seq_len)
     # Build station_idx and timestamps aligned to LSTM samples
-    # Each sample (t, n) maps to timestamp at t + seq_len - 1
-    val_meta  = _build_lstm_metadata(val_feat, val_ds, seq_len)
-    test_meta = _build_lstm_metadata(test_feat, test_ds, seq_len)
+    val_meta  = _build_lstm_metadata(val_feat, val_ds)
+    test_meta = _build_lstm_metadata(test_feat, test_ds)
 
     # --- Model ---
     input_size = len(__import__("data_loader").LSTM_FEATURE_COLS)
+    # Poisson emits a raw log-rate (Identity head) for log_input=True; MSE
+    # emits a non-negative rate directly (Softplus head) -- non-negativity
+    # belongs in the model, not in a post-hoc np.clip.
     model      = BikeDemanLSTM(
         input_size  = input_size,
         hidden_size = hidden_size,
         num_layers  = num_layers,
         dropout     = dropout,
-        use_softplus = loss_fn == "poisson",
+        use_softplus = loss_fn != "poisson",
     ).to(device)
 
     n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     logger.info("LSTM params: %d", n_params)
 
-    criterion = nn.PoissonNLLLoss(log_input=False) if loss_fn == "poisson" else nn.MSELoss()
+    criterion = nn.PoissonNLLLoss(log_input=True) if loss_fn == "poisson" else nn.MSELoss()
     optimiser = torch.optim.Adam(model.parameters(), lr=lr)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimiser, mode="min", factor=0.5, patience=3
@@ -301,10 +325,7 @@ def run_lstm(
         t0 = time.time()
 
         train_loss = train_epoch(model, train_loader, criterion, optimiser, device)
-        y_true, y_pred = evaluate_epoch(model, val_loader, device)
-
-        # Clip negatives before eval
-        y_pred = np.clip(y_pred, 0, None)
+        y_true, y_pred = evaluate_epoch(model, val_loader, device, loss_fn=loss_fn)
 
         from evaluate import compute_metrics
         val_metrics = compute_metrics(y_true, y_pred)
@@ -349,8 +370,7 @@ def run_lstm(
     logger.info("Loading best checkpoint (epoch %d)...", best_epoch)
     model.load_state_dict(torch.load(ckpt_path, map_location=device))
 
-    y_true, y_pred = evaluate_epoch(model, val_loader, device)
-    y_pred         = np.clip(y_pred, 0, None)
+    y_true, y_pred = evaluate_epoch(model, val_loader, device, loss_fn=loss_fn)
     result = full_evaluation(
         y_true      = y_true,
         y_pred      = y_pred,
@@ -358,10 +378,12 @@ def run_lstm(
         timestamps  = val_meta["timestamps"],
         model_name  = "lstm",
         split       = "val",
+        cluster     = val_meta["cluster"],
+        train_lag24 = train_lag24,
+        lag24       = val_meta["lag24"],
     )
 
-    y_true_test, y_pred_test = evaluate_epoch(model, test_loader, device)
-    y_pred_test              = np.clip(y_pred_test, 0, None)
+    y_true_test, y_pred_test = evaluate_epoch(model, test_loader, device, loss_fn=loss_fn)
     test_result = full_evaluation(
         y_true      = y_true_test,
         y_pred      = y_pred_test,
@@ -369,27 +391,44 @@ def run_lstm(
         timestamps  = test_meta["timestamps"],
         model_name  = "lstm",
         split       = "test",
+        cluster     = test_meta["cluster"],
+        train_lag24 = train_lag24,
+        lag24       = test_meta["lag24"],
+    )
+
+    train_ds_eval        = LSTMDataset(data_dir, "train", seq_len=seq_len)
+    train_eval_loader    = DataLoader(train_ds_eval, batch_size=batch_size, shuffle=False)
+    train_meta           = _build_lstm_metadata(train_feat, train_ds_eval)
+    y_true_train, y_pred_train = evaluate_epoch(model, train_eval_loader, device, loss_fn=loss_fn)
+    train_result = full_evaluation(
+        y_true      = y_true_train,
+        y_pred      = y_pred_train,
+        station_idx = train_meta["station_idx"],
+        timestamps  = train_meta["timestamps"],
+        model_name  = "lstm",
+        split       = "train",
+        cluster     = train_meta["cluster"],
+        train_lag24 = train_lag24,
+        lag24       = train_meta["lag24"],
     )
 
     if log_to_mlflow:
         mlflow.log_param("best_epoch", best_epoch)
 
-        for r in (result, test_result):
+        for r in (train_result, result, test_result):
             log_metrics_to_mlflow(r, prefix="best_")
-
-            # Save artifacts, split-suffixed so val/test don't overwrite each other
-            station_csv = f"/tmp/lstm_{r.split}_by_station.csv"
-            hour_csv    = f"/tmp/lstm_{r.split}_by_hour.csv"
-            r.by_station.to_csv(station_csv, index=False)
-            r.by_hour.to_csv(hour_csv, index=False)
-            mlflow.log_artifact(station_csv, artifact_path="eval")
-            mlflow.log_artifact(hour_csv, artifact_path="eval")
+            log_segment_artifacts_to_mlflow(r, "lstm")
 
         mlflow.log_artifact(str(ckpt_path), artifact_path="model")
         mlflow.end_run()
 
     print(
-        f"\nLSTM | val  MAE={result.metrics.mae:.4f}  "
+        f"\nLSTM | train MAE={train_result.metrics.mae:.4f}  "
+        f"RMSE={train_result.metrics.rmse:.4f}  "
+        f"MAPE={train_result.metrics.mape:.2f}%"
+    )
+    print(
+        f"LSTM | val  MAE={result.metrics.mae:.4f}  "
         f"RMSE={result.metrics.rmse:.4f}  "
         f"MAPE={result.metrics.mape:.2f}%  "
         f"(best epoch={best_epoch})"
@@ -406,41 +445,63 @@ def run_lstm(
 # ---------------------------------------------------------------------------
 
 def _build_lstm_metadata(
-    val_feat: "pd.DataFrame",
-    val_ds:   LSTMDataset,
-    seq_len:  int,
+    feat_df: "pd.DataFrame",
+    ds:      LSTMDataset,
 ) -> dict:
     """
-    Build station_idx and timestamps arrays aligned to LSTMDataset samples.
+    Build station_idx, timestamps, lag_24, and cluster arrays aligned to
+    LSTMDataset samples.
 
-    LSTMDataset sample (t, n) corresponds to:
-      - timestamp at position t + seq_len - 1 in the sorted time axis
-      - station at position n in the sorted station axis
+    Reads `ds.anchor_timestamps` (set by LSTMDataset, ROADMAP Phase 4) as
+    the source of truth for each anchor's scored target timestamp, rather
+    than re-deriving `T - seq_len + 1` independently from `feat_df` -- that
+    independent derivation went stale once val/test datasets started
+    borrowing a prior split's tail as input-only history, since
+    len(LSTMDataset) no longer equals `(T - seq_len + 1) * N` for those
+    splits.
 
-    Returns dict with keys 'station_idx' and 'timestamps'.
+    Returns dict with keys 'station_idx', 'timestamps', 'lag24', 'cluster'.
     """
     import pandas as pd
     import numpy as np
 
-    unique_times    = np.sort(val_feat["timestamp"].unique())
-    unique_stations = np.sort(val_feat["station_idx"].unique())
-    T = len(unique_times)
+    from evaluate import reconstruct_cluster_id
+
+    unique_stations = np.sort(feat_df["station_idx"].unique())
     N = len(unique_stations)
-    n_valid = T - seq_len + 1
+    anchor_timestamps = ds.anchor_timestamps
+    n_valid = len(anchor_timestamps)
 
-    station_idx_out = np.empty(n_valid * N, dtype=np.int64)
-    timestamps_out  = np.empty(n_valid * N, dtype="datetime64[ns]")
+    if n_valid * N != len(ds):
+        raise AssertionError(
+            f"metadata anchor count {n_valid}*{N}={n_valid * N} != len(dataset)={len(ds)}"
+        )
 
-    for t in range(n_valid):
-        ts = unique_times[t + seq_len - 1]
-        for n in range(N):
-            idx = t * N + n
-            station_idx_out[idx] = unique_stations[n]
-            timestamps_out[idx]  = ts
+    timestamps_out  = np.repeat(anchor_timestamps, N)
+    station_idx_out = np.tile(unique_stations, n_valid)
+
+    # lag_24 / cluster are genuine per-(timestamp, station) values -- look
+    # them up vectorized via a MultiIndex reindex, matching the time-major/
+    # station-minor order timestamps_out/station_idx_out already produce.
+    idx = pd.MultiIndex.from_product(
+        [anchor_timestamps, unique_stations], names=["timestamp", "station_idx"]
+    )
+    lookup = (
+        feat_df.set_index(["timestamp", "station_idx"])
+        [["lag_24", "cluster_0", "cluster_1", "cluster_2"]]
+        .reindex(idx)
+    )
+    lag24_out   = lookup["lag_24"].values
+    cluster_out = reconstruct_cluster_id(lookup[["cluster_0", "cluster_1", "cluster_2"]].values)
+
+    if len(lag24_out) != n_valid * N:
+        raise AssertionError("lag24/cluster lookup length mismatch")
 
     return {
         "station_idx": station_idx_out,
         "timestamps":  pd.to_datetime(timestamps_out),
+        "lag24":       lag24_out,
+        "cluster":     cluster_out,
     }
 
 
