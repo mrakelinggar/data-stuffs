@@ -212,14 +212,14 @@ class BikeDemanGCN(nn.Module):
 
     Parameters
     ----------
-    in_channels  : node feature dimension (15)
+    in_channels  : node feature dimension, driven by len(FEATURE_COLS)
     hidden_size  : GCN hidden dimension
     dropout      : dropout after first GCN layer
     """
 
     def __init__(
         self,
-        in_channels: int   = 15,
+        in_channels: int   = len(FEATURE_COLS),
         hidden_size: int   = 64,
         dropout:     float = 0.2,
         use_softplus: bool  = False,

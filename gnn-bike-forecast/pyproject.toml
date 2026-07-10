@@ -9,6 +9,7 @@ dependencies = [
     "fastparquet>=2025.12.0",
     "folium>=0.20.0",
     "geopandas>=1.1.1",
+    "holidays>=0.90",
     "loguru>=0.7.3",
     "lxml>=6.0.2",
     "matplotlib>=3.10.7",
@@ -36,6 +37,10 @@ dependencies = [
 [tool.uv]
 extra-build-dependencies.torch-scatter = ["torch"]
 extra-build-dependencies.torch-sparse = ["torch"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src/models", "src/data_ingestion"]
+testpaths = ["tests"]
 
 [dependency-groups]
 dev = [

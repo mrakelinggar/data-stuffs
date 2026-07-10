@@ -5,7 +5,8 @@ lstm.py
 
 Architecture
 ------------
-  Input  : (batch, seq_len=168, input_size=7)  -- 1-week sequence, 7 features
+  Input  : (batch, seq_len=168, input_size)  -- 1-week sequence,
+           input_size features (driven by len(LSTM_FEATURE_COLS))
   LSTM   : 2 layers, hidden_size=64, dropout between layers
   FC head: hidden_size -> 1
   Output : (batch,)  -- predicted demand at t+24
@@ -44,7 +45,7 @@ from torch.utils.data import DataLoader
 
 from tqdm import tqdm
 
-from data_loader import LSTM_SEQ_LEN, LSTMDataset, build_dataloaders
+from data_loader import LSTM_FEATURE_COLS, LSTM_SEQ_LEN, LSTMDataset, build_dataloaders
 from evaluate import full_evaluation, log_metrics_to_mlflow
 from mlflow_utils import log_segment_artifacts_to_mlflow, tag_run_provenance
 from utils import get_device, set_seed
@@ -64,7 +65,7 @@ class BikeDemanLSTM(nn.Module):
 
     Parameters
     ----------
-    input_size  : number of features per timestep (7)
+    input_size  : number of features per timestep, driven by len(LSTM_FEATURE_COLS)
     hidden_size : LSTM hidden dimension
     num_layers  : number of stacked LSTM layers
     dropout     : dropout probability between LSTM layers
@@ -72,7 +73,7 @@ class BikeDemanLSTM(nn.Module):
 
     def __init__(
         self,
-        input_size:  int   = 7,
+        input_size:  int   = len(LSTM_FEATURE_COLS),
         hidden_size: int   = 64,
         num_layers:  int   = 2,
         dropout:     float = 0.2,

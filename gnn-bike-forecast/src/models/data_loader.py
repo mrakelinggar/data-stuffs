@@ -51,6 +51,8 @@ FEATURE_COLS = [
     "neigh_mean_knn", "neigh_mean_flow",
     "net_flow_pct", "weekday_weekend_ratio",
     "hour_of_day", "day_of_week", "month", "is_weekend",
+    "temp_f", "precip_in", "wind_mph", "humidity_pct",              # ROADMAP Phase 5
+    "is_holiday", "is_day_before_holiday", "is_day_after_holiday",  # ROADMAP Phase 5
     "cluster_0", "cluster_1", "cluster_2",
 ]
 TARGET_COL = "target_t24"
@@ -60,6 +62,7 @@ GCN_FEATURE_COLS = FEATURE_COLS  # same set -- alias for future divergence
 LSTM_FEATURE_COLS = [
     "lag_1", "lag_24", "lag_168",
     "hour_of_day", "day_of_week", "month", "is_weekend",
+    "temp_f", "precip_in", "is_holiday",  # ROADMAP Phase 5 -- vary in time, matter at rush hour
 ]
 LSTM_SEQ_LEN = 168  # 1-week lookback, matches warm_up_hours
 
