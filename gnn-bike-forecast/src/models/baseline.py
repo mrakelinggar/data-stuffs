@@ -41,8 +41,8 @@ from data_loader import (
     BikeDataset,
     build_dataloaders,
 )
-from evaluate import EvalResult, full_evaluation, log_metrics_to_mlflow
-from mlflow_utils import tag_run_provenance
+from evaluate import EvalResult, full_evaluation, log_metrics_to_mlflow, reconstruct_cluster_id
+from mlflow_utils import log_segment_artifacts_to_mlflow, tag_run_provenance
 from utils import set_seed
 
 logger = logging.getLogger(__name__)
@@ -63,7 +63,8 @@ def run_naive(
     """
     Naive baseline: predict lag_24 as-is for every station/timestamp.
 
-    No training involved. Evaluated on val and test splits.
+    No training involved. Evaluated on train (diagnostic only), val, and
+    test splits.
     """
     set_seed(seed)
 
@@ -73,29 +74,54 @@ def run_naive(
     val_ds   = BikeDataset(data_dir, "val")
     test_ds  = BikeDataset(data_dir, "test")
 
+    X_train, y_train = train_ds.numpy_xy()
     X_val, y_val   = val_ds.numpy_xy()
     X_test, y_test = test_ds.numpy_xy()
 
     # Retrieve station_idx and timestamps for breakdown metrics
-    station_idx_val  = val_ds.station_idx.numpy()
-    station_idx_test = test_ds.station_idx.numpy()
+    station_idx_train = train_ds.station_idx.numpy()
+    station_idx_val    = val_ds.station_idx.numpy()
+    station_idx_test   = test_ds.station_idx.numpy()
 
-    # Load val/test parquet directly for timestamps
+    # Load train/val/test parquet directly for timestamps
     import pandas as pd
-    val_feat  = pd.read_parquet(data_dir / "features_val.parquet")
-    test_feat = pd.read_parquet(data_dir / "features_test.parquet")
-    timestamps_val  = pd.to_datetime(val_feat["timestamp"].values)
-    timestamps_test = pd.to_datetime(test_feat["timestamp"].values)
+    train_feat = pd.read_parquet(data_dir / "features_train.parquet")
+    val_feat   = pd.read_parquet(data_dir / "features_val.parquet")
+    test_feat  = pd.read_parquet(data_dir / "features_test.parquet")
+    timestamps_train = pd.to_datetime(train_feat["timestamp"].values)
+    timestamps_val    = pd.to_datetime(val_feat["timestamp"].values)
+    timestamps_test   = pd.to_datetime(test_feat["timestamp"].values)
 
     # from feature_metadata.json
     lag24_mean  = 1.6489
     lag24_scale = 3.5264
 
+    y_pred_train = X_train[:, LAG24_COL] * lag24_scale + lag24_mean
+    y_pred_train = np.clip(y_pred_train, 0, None)
     y_pred_val  = X_val[:, LAG24_COL] * lag24_scale + lag24_mean
     y_pred_val  = np.clip(y_pred_val, 0, None)
     y_pred_test = X_test[:, LAG24_COL] * lag24_scale + lag24_mean
     y_pred_test = np.clip(y_pred_test, 0, None)
 
+    # Tercile cutoffs computed once from train's own lag_24 distribution
+    # (BikeDataset.lag24 property), reused unchanged for train/val/test scoring.
+    train_lag24 = train_ds.lag24.numpy()
+    c0 = FEATURE_COLS.index("cluster_0")
+    cluster_train = reconstruct_cluster_id(X_train[:, c0:c0 + 3])
+    cluster_val   = reconstruct_cluster_id(X_val[:, c0:c0 + 3])
+    cluster_test  = reconstruct_cluster_id(X_test[:, c0:c0 + 3])
+
+    train_result = full_evaluation(
+        y_true      = y_train,
+        y_pred      = y_pred_train,
+        station_idx = station_idx_train,
+        timestamps  = timestamps_train,
+        model_name  = "naive",
+        split       = "train",
+        cluster     = cluster_train,
+        train_lag24 = train_lag24,
+        lag24       = X_train[:, LAG24_COL],
+    )
     val_result = full_evaluation(
         y_true      = y_val,
         y_pred      = y_pred_val,
@@ -103,6 +129,9 @@ def run_naive(
         timestamps  = timestamps_val,
         model_name  = "naive",
         split       = "val",
+        cluster     = cluster_val,
+        train_lag24 = train_lag24,
+        lag24       = X_val[:, LAG24_COL],
     )
     test_result = full_evaluation(
         y_true      = y_test,
@@ -111,16 +140,20 @@ def run_naive(
         timestamps  = timestamps_test,
         model_name  = "naive",
         split       = "test",
+        cluster     = cluster_test,
+        train_lag24 = train_lag24,
+        lag24       = X_test[:, LAG24_COL],
     )
 
     if log_to_mlflow:
         _log_baseline_to_mlflow(
-            model_name  = "naive",
-            params      = {"model_type": "naive", "prediction": "lag_24", "seed": seed},
-            val_result  = val_result,
-            test_result = test_result,
-            data_dir    = data_dir,
-            seed        = seed,
+            model_name   = "naive",
+            params       = {"model_type": "naive", "prediction": "lag_24", "seed": seed},
+            train_result = train_result,
+            val_result   = val_result,
+            test_result  = test_result,
+            data_dir     = data_dir,
+            seed         = seed,
         )
 
     return val_result
@@ -162,13 +195,16 @@ def run_linear(
     X_val,   y_val   = val_ds.numpy_xy()
     X_test,  y_test  = test_ds.numpy_xy()
 
-    station_idx_val  = val_ds.station_idx.numpy()
-    station_idx_test = test_ds.station_idx.numpy()
+    station_idx_train = train_ds.station_idx.numpy()
+    station_idx_val    = val_ds.station_idx.numpy()
+    station_idx_test   = test_ds.station_idx.numpy()
 
-    val_feat  = pd.read_parquet(data_dir / "features_val.parquet")
-    test_feat = pd.read_parquet(data_dir / "features_test.parquet")
-    timestamps_val  = pd.to_datetime(val_feat["timestamp"].values)
-    timestamps_test = pd.to_datetime(test_feat["timestamp"].values)
+    train_feat = pd.read_parquet(data_dir / "features_train.parquet")
+    val_feat   = pd.read_parquet(data_dir / "features_val.parquet")
+    test_feat  = pd.read_parquet(data_dir / "features_test.parquet")
+    timestamps_train = pd.to_datetime(train_feat["timestamp"].values)
+    timestamps_val    = pd.to_datetime(val_feat["timestamp"].values)
+    timestamps_test   = pd.to_datetime(test_feat["timestamp"].values)
 
     # Build and fit pipeline
     pipeline = Pipeline([
@@ -182,9 +218,31 @@ def run_linear(
     )
     pipeline.fit(X_train, y_train)
 
+    # Train prediction is the model's own in-sample fit -- expected to look
+    # much better than val/test, used only as an overfit-gap diagnostic.
+    y_pred_train = np.clip(pipeline.predict(X_train), 0, None)
     y_pred_val  = np.clip(pipeline.predict(X_val), 0, None)
     y_pred_test = np.clip(pipeline.predict(X_test), 0, None)
 
+    # Tercile cutoffs computed once from train's own lag_24 distribution,
+    # reused unchanged for train/val/test scoring.
+    train_lag24 = train_ds.lag24.numpy()
+    c0 = FEATURE_COLS.index("cluster_0")
+    cluster_train = reconstruct_cluster_id(X_train[:, c0:c0 + 3])
+    cluster_val   = reconstruct_cluster_id(X_val[:, c0:c0 + 3])
+    cluster_test  = reconstruct_cluster_id(X_test[:, c0:c0 + 3])
+
+    train_result = full_evaluation(
+        y_true      = y_train,
+        y_pred      = y_pred_train,
+        station_idx = station_idx_train,
+        timestamps  = timestamps_train,
+        model_name  = "linear",
+        split       = "train",
+        cluster     = cluster_train,
+        train_lag24 = train_lag24,
+        lag24       = X_train[:, LAG24_COL],
+    )
     val_result = full_evaluation(
         y_true      = y_val,
         y_pred      = y_pred_val,
@@ -192,6 +250,9 @@ def run_linear(
         timestamps  = timestamps_val,
         model_name  = "linear",
         split       = "val",
+        cluster     = cluster_val,
+        train_lag24 = train_lag24,
+        lag24       = X_val[:, LAG24_COL],
     )
     test_result = full_evaluation(
         y_true      = y_test,
@@ -200,12 +261,15 @@ def run_linear(
         timestamps  = timestamps_test,
         model_name  = "linear",
         split       = "test",
+        cluster     = cluster_test,
+        train_lag24 = train_lag24,
+        lag24       = X_test[:, LAG24_COL],
     )
 
     if log_to_mlflow:
         _log_baseline_to_mlflow(
-            model_name  = "linear",
-            params      = {
+            model_name   = "linear",
+            params       = {
                 "model_type":    "ridge",
                 "alpha":         alpha,
                 "n_features":    X_train.shape[1],
@@ -215,6 +279,7 @@ def run_linear(
                 "test_samples":  len(X_test),
                 "seed":          seed,
             },
+            train_result  = train_result,
             val_result    = val_result,
             test_result   = test_result,
             data_dir      = data_dir,
@@ -232,13 +297,18 @@ def run_linear(
 def _log_baseline_to_mlflow(
     model_name:    str,
     params:        dict,
+    train_result:  EvalResult,
     val_result:    EvalResult,
     test_result:   EvalResult,
     data_dir:      Path,
     seed:          int,
     sklearn_model  = None,
 ) -> None:
-    """Log a baseline run (val + test) to MLflow."""
+    """Log a baseline run (train + val + test) to MLflow.
+
+    best_train_* is diagnostic-only (over/underfit gap check) -- never used
+    for model selection, early stopping, or leaderboard "best" ranking.
+    """
     mlflow.set_experiment(EXPERIMENT_NAME)
 
     with mlflow.start_run(run_name=model_name):
@@ -248,17 +318,9 @@ def _log_baseline_to_mlflow(
 
         mlflow.log_params(params)
 
-        for result in (val_result, test_result):
+        for result in (train_result, val_result, test_result):
             log_metrics_to_mlflow(result, prefix="best_")
-
-            # Save per-station and per-hour breakdowns as CSV artifacts,
-            # split-suffixed so val/test don't overwrite each other on disk.
-            station_csv = f"/tmp/{model_name}_{result.split}_by_station.csv"
-            hour_csv    = f"/tmp/{model_name}_{result.split}_by_hour.csv"
-            result.by_station.to_csv(station_csv, index=False)
-            result.by_hour.to_csv(hour_csv, index=False)
-            mlflow.log_artifact(station_csv, artifact_path="eval")
-            mlflow.log_artifact(hour_csv, artifact_path="eval")
+            log_segment_artifacts_to_mlflow(result, model_name)
 
         # Log sklearn model artifact
         if sklearn_model is not None:

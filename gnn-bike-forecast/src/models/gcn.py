@@ -68,7 +68,7 @@ from data_loader import (
     load_adj,
 )
 from evaluate import compute_metrics, full_evaluation, log_metrics_to_mlflow
-from mlflow_utils import tag_run_provenance
+from mlflow_utils import log_segment_artifacts_to_mlflow, tag_run_provenance
 from utils import get_device, set_seed
 
 logger = logging.getLogger(__name__)
@@ -309,9 +309,17 @@ def evaluate_epoch(
     model:   BikeDemanGCN,
     dataset: EagerGraphDataset | LazyGraphDataset,
     device:  torch.device,
+    loss_fn: str = "poisson",
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Run inference over all snapshots.
+
+    Parameters
+    ----------
+    loss_fn : "poisson" or "mse" -- determines how the model's raw output is
+              turned into a predicted rate. Poisson emits a raw log-rate
+              (recovered via exp()); MSE emits a non-negative rate directly
+              from its Softplus head (no transform needed).
 
     Returns
     -------
@@ -332,7 +340,15 @@ def evaluate_epoch(
         all_true.append(data.y.numpy())
         all_pred.append(pred.cpu().numpy())
 
-    return np.concatenate(all_true), np.concatenate(all_pred)
+    y_true     = np.concatenate(all_true)
+    y_pred_raw = np.concatenate(all_pred)
+
+    if loss_fn == "poisson":
+        y_pred = np.exp(y_pred_raw)   # recover rate from raw log-rate
+    else:
+        y_pred = y_pred_raw          # Softplus head already guarantees >= 0
+
+    return y_true, y_pred
 
 
 # ---------------------------------------------------------------------------
@@ -344,10 +360,12 @@ def _build_gcn_metadata(
     split:    str,
 ) -> dict:
     """
-    Build flat station_idx and timestamps arrays aligned to snapshot order.
-    Each snapshot t contributes N rows (one per station).
+    Build flat station_idx, timestamps, lag_24, and cluster arrays aligned to
+    snapshot order. Each snapshot t contributes N rows (one per station).
     """
     import pandas as pd
+
+    from evaluate import reconstruct_cluster_id
 
     feat_df         = pd.read_parquet(data_dir / f"features_{split}.parquet")
     unique_times    = np.sort(feat_df["timestamp"].unique())
@@ -358,9 +376,31 @@ def _build_gcn_metadata(
     station_idx_out = np.tile(unique_stations, T)                      # (T*N,)
     timestamps_out  = np.repeat(unique_times,  N)                      # (T*N,)
 
+    # lag_24 / cluster are genuine per-(timestamp, station) values -- look
+    # them up vectorized via a MultiIndex reindex, matching the
+    # time-major/station-minor order station_idx_out/timestamps_out above
+    # already produce (np.tile repeats the full station array per timestep;
+    # np.repeat holds each timestamp fixed for N consecutive rows).
+    idx = pd.MultiIndex.from_product(
+        [unique_times, unique_stations], names=["timestamp", "station_idx"]
+    )
+    lookup = (
+        feat_df.set_index(["timestamp", "station_idx"])
+        [["lag_24", "cluster_0", "cluster_1", "cluster_2"]]
+        .reindex(idx)
+    )
+    lag24_out   = lookup["lag_24"].values
+    cluster_out = reconstruct_cluster_id(lookup[["cluster_0", "cluster_1", "cluster_2"]].values)
+
+    assert len(lag24_out) == T * N, "lag24/cluster lookup length mismatch"
+    assert np.array_equal(lookup.index.get_level_values("station_idx").values, station_idx_out), \
+        "lag24/cluster lookup order mismatch against station_idx_out"
+
     return {
         "station_idx": station_idx_out.astype(np.int64),
         "timestamps":  pd.to_datetime(timestamps_out),
+        "lag24":       lag24_out,
+        "cluster":     cluster_out,
     }
 
 
@@ -414,22 +454,27 @@ def run_gcn(
     val_ds   = build_graph_dataset(data_dir, "val",   adj_tensor)
     test_ds  = build_graph_dataset(data_dir, "test",  adj_tensor)
 
-    val_meta  = _build_gcn_metadata(data_dir, "val")
-    test_meta = _build_gcn_metadata(data_dir, "test")
+    train_meta = _build_gcn_metadata(data_dir, "train")
+    val_meta   = _build_gcn_metadata(data_dir, "val")
+    test_meta  = _build_gcn_metadata(data_dir, "test")
+    train_lag24 = train_meta["lag24"]
 
     # --- Model ---
     in_channels = len(FEATURE_COLS)
+    # Poisson emits a raw log-rate (Identity head) for log_input=True; MSE
+    # emits a non-negative rate directly (Softplus head) -- non-negativity
+    # belongs in the model, not in a post-hoc np.clip.
     model = BikeDemanGCN(
         in_channels = in_channels,
         hidden_size = hidden_size,
         dropout     = dropout,
-        use_softplus = loss_fn == "poisson",
+        use_softplus = loss_fn != "poisson",
     ).to(device)
 
     n_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     logger.info("%s params: %d", run_name, n_params)
 
-    criterion = nn.PoissonNLLLoss(log_input=False) if loss_fn == "poisson" else nn.MSELoss()
+    criterion = nn.PoissonNLLLoss(log_input=True) if loss_fn == "poisson" else nn.MSELoss()
     optimiser = torch.optim.Adam(model.parameters(), lr=lr)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
         optimiser, mode="min", factor=0.5, patience=3
@@ -474,8 +519,7 @@ def run_gcn(
         t0 = time.time()
 
         train_loss     = train_epoch(model, train_ds, criterion, optimiser, device)
-        y_true, y_pred = evaluate_epoch(model, val_ds, device)
-        y_pred         = np.clip(y_pred, 0, None)
+        y_true, y_pred = evaluate_epoch(model, val_ds, device, loss_fn=loss_fn)
 
         val_metrics = compute_metrics(y_true, y_pred)
         val_mae     = val_metrics.mae
@@ -521,8 +565,7 @@ def run_gcn(
     logger.info("Loading best checkpoint (epoch %d)...", best_epoch)
     model.load_state_dict(torch.load(ckpt_path, map_location=device))
 
-    y_true, y_pred = evaluate_epoch(model, val_ds, device)
-    y_pred         = np.clip(y_pred, 0, None)
+    y_true, y_pred = evaluate_epoch(model, val_ds, device, loss_fn=loss_fn)
     result = full_evaluation(
         y_true      = y_true,
         y_pred      = y_pred,
@@ -530,10 +573,12 @@ def run_gcn(
         timestamps  = val_meta["timestamps"],
         model_name  = run_name,
         split       = "val",
+        cluster     = val_meta["cluster"],
+        train_lag24 = train_lag24,
+        lag24       = val_meta["lag24"],
     )
 
-    y_true_test, y_pred_test = evaluate_epoch(model, test_ds, device)
-    y_pred_test              = np.clip(y_pred_test, 0, None)
+    y_true_test, y_pred_test = evaluate_epoch(model, test_ds, device, loss_fn=loss_fn)
     test_result = full_evaluation(
         y_true      = y_true_test,
         y_pred      = y_pred_test,
@@ -541,26 +586,41 @@ def run_gcn(
         timestamps  = test_meta["timestamps"],
         model_name  = run_name,
         split       = "test",
+        cluster     = test_meta["cluster"],
+        train_lag24 = train_lag24,
+        lag24       = test_meta["lag24"],
+    )
+
+    y_true_train, y_pred_train = evaluate_epoch(model, train_ds, device, loss_fn=loss_fn)
+    train_result = full_evaluation(
+        y_true      = y_true_train,
+        y_pred      = y_pred_train,
+        station_idx = train_meta["station_idx"],
+        timestamps  = train_meta["timestamps"],
+        model_name  = run_name,
+        split       = "train",
+        cluster     = train_meta["cluster"],
+        train_lag24 = train_lag24,
+        lag24       = train_meta["lag24"],
     )
 
     if log_to_mlflow:
         mlflow.log_param("best_epoch", best_epoch)
 
-        for r in (result, test_result):
+        for r in (train_result, result, test_result):
             log_metrics_to_mlflow(r, prefix="best_")
-
-            station_csv = f"/tmp/{run_name}_{r.split}_by_station.csv"
-            hour_csv    = f"/tmp/{run_name}_{r.split}_by_hour.csv"
-            r.by_station.to_csv(station_csv, index=False)
-            r.by_hour.to_csv(hour_csv, index=False)
-            mlflow.log_artifact(station_csv, artifact_path="eval")
-            mlflow.log_artifact(hour_csv, artifact_path="eval")
+            log_segment_artifacts_to_mlflow(r, run_name)
 
         mlflow.log_artifact(str(ckpt_path), artifact_path="model")
         mlflow.end_run()
 
     print(
-        f"\n{run_name} | val  MAE={result.metrics.mae:.4f}  "
+        f"\n{run_name} | train MAE={train_result.metrics.mae:.4f}  "
+        f"RMSE={train_result.metrics.rmse:.4f}  "
+        f"MAPE={train_result.metrics.mape:.2f}%"
+    )
+    print(
+        f"{run_name} | val  MAE={result.metrics.mae:.4f}  "
         f"RMSE={result.metrics.rmse:.4f}  "
         f"MAPE={result.metrics.mape:.2f}%  "
         f"(best epoch={best_epoch})"
