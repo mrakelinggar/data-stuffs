@@ -48,7 +48,7 @@ from tqdm import tqdm
 from data_loader import LSTM_FEATURE_COLS, LSTM_SEQ_LEN, LSTMDataset, build_dataloaders
 from evaluate import full_evaluation, log_metrics_to_mlflow
 from mlflow_utils import log_segment_artifacts_to_mlflow, tag_run_provenance
-from utils import get_device, set_seed
+from utils import get_device, release_host_memory, set_seed
 
 logger = logging.getLogger(__name__)
 
@@ -183,7 +183,12 @@ def evaluate_epoch(
     for x_seq, y in tqdm(loader, desc="  val  ", leave=False, unit="batch"):
         x_seq = x_seq.to(device, non_blocking=True)
         pred  = model(x_seq)
-        all_true.append(y.numpy())
+        # .cpu() is required (not just defensive) when LSTMDataset's grids
+        # live on a CUDA device (see data_loader.py) -- y then arrives here
+        # already GPU-resident, and .numpy() raises on a CUDA tensor. A
+        # no-op when y is already on CPU (MPS/CPU device or CPU-resident
+        # dataset), so safe in both cases.
+        all_true.append(y.cpu().numpy())
         all_pred.append(pred.cpu().numpy())
 
     y_true    = np.concatenate(all_true)
@@ -247,24 +252,47 @@ def run_lstm(
         num_workers = 0,      # 0 avoids MPS/multiprocessing conflicts
         model_type = "lstm",
         seq_len    = seq_len,
+        # On CUDA, LSTMDataset moves its dense grids onto the GPU instead of
+        # keeping them CPU-resident -- shifts memory pressure off system RAM
+        # onto VRAM, which is typically much less contended (e.g. Colab's
+        # free-tier T4: 12.7GB system RAM vs 15GB mostly-idle VRAM). No
+        # effect on MPS/CPU.
+        device      = device,
     )
 
     # Retrieve train/val/test metadata for full_evaluation (station_idx, timestamps,
     # lag_24, cluster). train_lag24 feeds the volume-tier tercile cutoffs -- computed
     # once here and reused unchanged for train/val/test scoring.
+    #
+    # _build_lstm_metadata only reads station_idx/timestamp/lag_24/cluster_*
+    # (6 columns) -- restrict the parquet read to those instead of all ~27
+    # columns (the full feature matrix, already held separately inside each
+    # LSTMDataset's dense grid). Reading everything here duplicated most of
+    # that memory for no reason, right before the run's first validation
+    # pass -- the direct cause of a near-OOM RAM thrash mid-validation.
     import pandas as pd
-    train_feat     = pd.read_parquet(data_dir / "features_train.parquet")
-    val_feat       = pd.read_parquet(data_dir / "features_val.parquet")
-    test_feat      = pd.read_parquet(data_dir / "features_test.parquet")
+    _META_COLS = ["station_idx", "timestamp", "lag_24", "cluster_0", "cluster_1", "cluster_2"]
+    train_feat     = pd.read_parquet(data_dir / "features_train.parquet", columns=_META_COLS)
+    val_feat       = pd.read_parquet(data_dir / "features_val.parquet",   columns=_META_COLS)
+    test_feat      = pd.read_parquet(data_dir / "features_test.parquet",  columns=_META_COLS)
     train_lag24    = train_feat["lag_24"].values
     # LSTM val/test datasets borrow the preceding split's tail as read-only
     # input history (ROADMAP Phase 4), so every own row is scored -- metadata
     # alignment below reads ds.anchor_timestamps rather than re-deriving it.
-    val_ds         = LSTMDataset(data_dir, "val", seq_len=seq_len)
-    test_ds        = LSTMDataset(data_dir, "test", seq_len=seq_len)
+    # Reuse the loaders' own datasets rather than re-instantiating LSTMDataset
+    # -- a fresh instance re-reads the parquet and rebuilds the full (T, N, F)
+    # dense grid from scratch, doubling val/test's resident memory for the
+    # entire run (this was the direct cause of a Colab OOM mid-validation).
+    val_ds         = val_loader.dataset
+    test_ds        = test_loader.dataset
     # Build station_idx and timestamps aligned to LSTM samples
     val_meta  = _build_lstm_metadata(val_feat, val_ds)
     test_meta = _build_lstm_metadata(test_feat, test_ds)
+    # val_feat/test_feat are never read again (only train_feat is reused
+    # later, for train_meta) -- free them now rather than holding them
+    # resident for the rest of the run.
+    del val_feat, test_feat
+    release_host_memory()
 
     # --- Model ---
     input_size = len(__import__("data_loader").LSTM_FEATURE_COLS)
@@ -367,77 +395,71 @@ def run_lstm(
                 )
                 break
 
-    # --- Load best checkpoint and run full evaluation (val + test) ---
+    # --- Load best checkpoint and run full evaluation (val + test + train) ---
     logger.info("Loading best checkpoint (epoch %d)...", best_epoch)
     model.load_state_dict(torch.load(ckpt_path, map_location=device))
-
-    y_true, y_pred = evaluate_epoch(model, val_loader, device, loss_fn=loss_fn)
-    result = full_evaluation(
-        y_true      = y_true,
-        y_pred      = y_pred,
-        station_idx = val_meta["station_idx"],
-        timestamps  = val_meta["timestamps"],
-        model_name  = "lstm",
-        split       = "val",
-        cluster     = val_meta["cluster"],
-        train_lag24 = train_lag24,
-        lag24       = val_meta["lag24"],
-    )
-
-    y_true_test, y_pred_test = evaluate_epoch(model, test_loader, device, loss_fn=loss_fn)
-    test_result = full_evaluation(
-        y_true      = y_true_test,
-        y_pred      = y_pred_test,
-        station_idx = test_meta["station_idx"],
-        timestamps  = test_meta["timestamps"],
-        model_name  = "lstm",
-        split       = "test",
-        cluster     = test_meta["cluster"],
-        train_lag24 = train_lag24,
-        lag24       = test_meta["lag24"],
-    )
-
-    train_ds_eval        = LSTMDataset(data_dir, "train", seq_len=seq_len)
-    train_eval_loader    = DataLoader(train_ds_eval, batch_size=batch_size, shuffle=False)
-    train_meta           = _build_lstm_metadata(train_feat, train_ds_eval)
-    y_true_train, y_pred_train = evaluate_epoch(model, train_eval_loader, device, loss_fn=loss_fn)
-    train_result = full_evaluation(
-        y_true      = y_true_train,
-        y_pred      = y_pred_train,
-        station_idx = train_meta["station_idx"],
-        timestamps  = train_meta["timestamps"],
-        model_name  = "lstm",
-        split       = "train",
-        cluster     = train_meta["cluster"],
-        train_lag24 = train_lag24,
-        lag24       = train_meta["lag24"],
-    )
 
     if log_to_mlflow:
         mlflow.log_param("best_epoch", best_epoch)
 
-        for r in (train_result, result, test_result):
+    # Reuse train_loader's dataset (see val_ds/test_ds above) instead of
+    # re-instantiating LSTMDataset -- avoids a third redundant full-grid
+    # rebuild; only the DataLoader wrapper needs to differ (non-shuffled).
+    train_ds_eval     = train_loader.dataset
+    train_eval_loader = DataLoader(train_ds_eval, batch_size=batch_size, shuffle=False)
+    train_meta        = _build_lstm_metadata(train_feat, train_ds_eval)
+
+    # Each EvalResult carries full row-level y_true/y_pred/station_idx/
+    # timestamps arrays (needed for log_predictions_to_mlflow's paired
+    # significance testing). Building all three splits' EvalResults up
+    # front and holding them simultaneously until a final logging loop was
+    # a real, if bounded, memory peak -- log-then-release each split
+    # immediately instead, keeping only the small `.metrics` summary
+    # needed for the prints below.
+    metrics_by_split = {}
+    for split_name, loader, meta in [
+        ("val",   val_loader,        val_meta),
+        ("test",  test_loader,       test_meta),
+        ("train", train_eval_loader, train_meta),
+    ]:
+        y_true, y_pred = evaluate_epoch(model, loader, device, loss_fn=loss_fn)
+        r = full_evaluation(
+            y_true      = y_true,
+            y_pred      = y_pred,
+            station_idx = meta["station_idx"],
+            timestamps  = meta["timestamps"],
+            model_name  = "lstm",
+            split       = split_name,
+            cluster     = meta["cluster"],
+            train_lag24 = train_lag24,
+            lag24       = meta["lag24"],
+        )
+        if log_to_mlflow:
             log_metrics_to_mlflow(r, prefix="best_")
             log_segment_artifacts_to_mlflow(r, "lstm")
+        metrics_by_split[split_name] = r.metrics
+        del y_true, y_pred, r
+        release_host_memory()
 
+    if log_to_mlflow:
         mlflow.log_artifact(str(ckpt_path), artifact_path="model")
         mlflow.end_run()
 
     print(
-        f"\nLSTM | train MAE={train_result.metrics.mae:.4f}  "
-        f"RMSE={train_result.metrics.rmse:.4f}  "
-        f"MAPE={train_result.metrics.mape:.2f}%"
+        f"\nLSTM | train MAE={metrics_by_split['train'].mae:.4f}  "
+        f"RMSE={metrics_by_split['train'].rmse:.4f}  "
+        f"MAPE={metrics_by_split['train'].mape:.2f}%"
     )
     print(
-        f"LSTM | val  MAE={result.metrics.mae:.4f}  "
-        f"RMSE={result.metrics.rmse:.4f}  "
-        f"MAPE={result.metrics.mape:.2f}%  "
+        f"LSTM | val  MAE={metrics_by_split['val'].mae:.4f}  "
+        f"RMSE={metrics_by_split['val'].rmse:.4f}  "
+        f"MAPE={metrics_by_split['val'].mape:.2f}%  "
         f"(best epoch={best_epoch})"
     )
     print(
-        f"LSTM | test MAE={test_result.metrics.mae:.4f}  "
-        f"RMSE={test_result.metrics.rmse:.4f}  "
-        f"MAPE={test_result.metrics.mape:.2f}%"
+        f"LSTM | test MAE={metrics_by_split['test'].mae:.4f}  "
+        f"RMSE={metrics_by_split['test'].rmse:.4f}  "
+        f"MAPE={metrics_by_split['test'].mape:.2f}%"
     )
 
 

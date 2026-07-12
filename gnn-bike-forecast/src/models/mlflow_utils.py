@@ -10,6 +10,7 @@ significance testing).
 
 from __future__ import annotations
 
+import json
 import subprocess
 import tempfile
 from pathlib import Path
@@ -22,6 +23,11 @@ from evaluate import EvalResult
 from utils import get_validated_snapshot_id
 
 _REPO_DIR = Path(__file__).resolve().parent
+_PROJECT_ROOT = _REPO_DIR.parent.parent
+
+# Fallback for environments that received a code+data bundle instead of a
+# .git checkout (e.g. a remote GPU notebook) -- see write_git_provenance.py.
+_PROVENANCE_FALLBACK_FILE = _PROJECT_ROOT / "GIT_PROVENANCE.json"
 
 
 def _run_git(*args: str) -> str:
@@ -38,15 +44,39 @@ def _run_git(*args: str) -> str:
     return result.stdout.strip()
 
 
+def _read_provenance_fallback() -> dict | None:
+    if not _PROVENANCE_FALLBACK_FILE.exists():
+        return None
+    with open(_PROVENANCE_FALLBACK_FILE) as f:
+        return json.load(f)
+
+
 def get_git_sha() -> str:
     """HEAD commit sha. Note: this repo is nested inside a larger monorepo,
     so the sha reflects the monorepo's HEAD, not a dedicated-repo commit —
-    still valid for traceability, just not scoped to this subdirectory."""
-    return _run_git("rev-parse", "HEAD")
+    still valid for traceability, just not scoped to this subdirectory.
+
+    Falls back to GIT_PROVENANCE.json (sha/dirty captured from the real repo
+    before packaging) when no .git checkout is present -- raises the
+    original git error if that fallback is also absent, rather than
+    silently tagging a run with fabricated provenance."""
+    try:
+        return _run_git("rev-parse", "HEAD")
+    except RuntimeError:
+        fallback = _read_provenance_fallback()
+        if fallback is None:
+            raise
+        return fallback["sha"]
 
 
 def _is_git_dirty() -> bool:
-    return bool(_run_git("status", "--porcelain"))
+    try:
+        return bool(_run_git("status", "--porcelain"))
+    except RuntimeError:
+        fallback = _read_provenance_fallback()
+        if fallback is None:
+            raise
+        return fallback["dirty"]
 
 
 def _library_versions() -> dict[str, str]:

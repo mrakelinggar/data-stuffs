@@ -1,7 +1,8 @@
-local-notes/
+/local-notes/
 mlflow.db
+GIT_PROVENANCE.json
 /models/
-reports/
+/reports/
 .agents/
 skills-lock.json
 CLAUDE.md

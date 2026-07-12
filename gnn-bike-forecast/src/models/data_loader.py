@@ -35,7 +35,7 @@ from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 from torch_geometric.data import Data
 
-from utils import get_validated_snapshot_id
+from utils import get_validated_snapshot_id, release_host_memory
 
 logger = logging.getLogger(__name__)
 
@@ -154,7 +154,14 @@ def _load_split(
     features    = feat_df[FEATURE_COLS].values.astype(np.float32)
     targets     = tgt_df[TARGET_COL].values.astype(np.float32)
     station_idx = feat_df["station_idx"].values.astype(np.int64)
-    timestamps  = pd.to_datetime(feat_df["timestamp"].values)
+    # .to_numpy() (not the bare DatetimeIndex pd.to_datetime returns) so every
+    # caller gets a plain ndarray of numpy.datetime64 -- consistent with what
+    # np.unique() produces. A DatetimeIndex boxes __getitem__ results as
+    # pandas.Timestamp, which can hash differently from the numpy.datetime64
+    # keys np.unique(...) yields, causing spurious KeyErrors in any lookup
+    # path that skips np.concatenate() (train's LSTMDataset branch has no
+    # prior split to concatenate against, so it's the one path this bit).
+    timestamps  = pd.to_datetime(feat_df["timestamp"].values).to_numpy()
 
     return features, targets, station_idx, timestamps
 
@@ -234,6 +241,18 @@ class LSTMDataset(Dataset):
     sample count equals N_stations × T_own — matching BikeDataset/GCN, which
     score every row in a split. Train has no preceding split to borrow from,
     so it keeps the original N_stations × (T - seq_len + 1) behavior.
+
+    `device`: when a CUDA device is passed, the dense (T,N,F_lstm)/(T,N)
+    grids are moved there at construction time instead of staying CPU-resident
+    -- on a machine with abundant idle VRAM but a tight system-RAM ceiling
+    (e.g. a free-tier Colab T4: 12.7GB system RAM vs 15GB mostly-idle VRAM),
+    this shifts the dataset's dominant memory cost off the constrained
+    resource. `num_workers=0` is required for this (CUDA tensors can't cross
+    a forked DataLoader worker process) -- LSTM training already uses
+    num_workers=0 unconditionally, so this is safe. No effect for MPS/CPU
+    devices (kept CPU-resident, matching prior behavior) -- MPS's indexing/
+    slicing kernel coverage is less mature (see CLAUDE.md's reproducibility
+    notes), so this optimization is deliberately CUDA-only for now.
     """
 
     def __init__(
@@ -241,6 +260,7 @@ class LSTMDataset(Dataset):
         data_dir: str | Path,
         split: Literal["train", "val", "test"],
         seq_len: int = LSTM_SEQ_LEN,
+        device: torch.device | None = None,
     ) -> None:
         data_dir = Path(data_dir)
         own_features, own_targets, own_station_idx, own_timestamps = _load_split(data_dir, split)
@@ -302,10 +322,33 @@ class LSTMDataset(Dataset):
             # targets parquet at all.
             borrowed_targets = np.zeros(int(tail_mask.sum()), dtype=np.float32)
             targets = np.concatenate([borrowed_targets, own_targets])
+
+            # p_features/p_station_idx/p_timestamps are the ENTIRE prior
+            # split reloaded from disk (e.g. for val, all of train's ~460MB
+            # features array) just to slice out `borrow_len` rows -- their
+            # data is now copied into the concatenated arrays above, so
+            # release them now rather than holding them through the O(T*N)
+            # grid-building loop below.
+            del p_features, p_station_idx, p_timestamps, tail_mask
+            del p_unique_times, tail_times, borrowed_targets
+            release_host_memory()
         else:
             features, targets, station_idx, timestamps = (
                 own_features, own_targets, own_station_idx, own_timestamps,
             )
+
+        # own_features/own_targets/own_station_idx are no longer needed past
+        # this point (own_timestamps is kept -- still read at the anchor-
+        # count assertion below). In the borrow branch they were already
+        # copied into a new concatenated array via np.concatenate, so this
+        # frees the originals; in the no-borrow (train) branch, features/
+        # targets/station_idx are just aliases of the same objects (no copy
+        # was made), so deleting the own_* names here is what actually lets
+        # those arrays become collectible once `features` etc. are deleted
+        # below -- without this, train (the largest split) would silently
+        # keep its full features array alive via the own_features alias
+        # even after `del features`.
+        del own_features, own_targets, own_station_idx
 
         # Pivot to (T, N, F) tensors
         # Determine unique timestamps and stations in sorted order
@@ -337,12 +380,31 @@ class LSTMDataset(Dataset):
         # Extract LSTM feature subset: (T, N, F_lstm)
         lstm_grid = feat_grid[:, :, lstm_cols]
 
-        # Store as tensors
-        self.lstm_grid   = torch.from_numpy(lstm_grid)    # (T, N, F_lstm)
-        self.target_grid = torch.from_numpy(target_grid)  # (T, N)
+        # Store as tensors -- moved to `device` immediately when it's CUDA
+        # (see docstring), so the CPU-resident numpy arrays above become
+        # eligible for GC right after.
+        lstm_grid_t   = torch.from_numpy(lstm_grid)    # (T, N, F_lstm)
+        target_grid_t = torch.from_numpy(target_grid)  # (T, N)
+        if device is not None and device.type == "cuda":
+            lstm_grid_t   = lstm_grid_t.to(device)
+            target_grid_t = target_grid_t.to(device)
+        self.lstm_grid   = lstm_grid_t
+        self.target_grid = target_grid_t
         self.T = T
         self.N = N
         self.n_valid = T - seq_len + 1
+
+        # feat_grid/lstm_grid (numpy)/features/targets/station_idx/timestamps
+        # are large transient CPU allocations (feat_grid alone is
+        # T*N*len(FEATURE_COLS)*4 bytes, ~460MB for the train split) --
+        # none are referenced again (unique_times/anchor_timestamps below
+        # are already-derived, much smaller arrays). Freeing them here and
+        # forcing a real OS-level release (not just a Python-level GC) keeps
+        # process RSS from ratcheting up split after split, since glibc
+        # otherwise tends to hold onto freed arenas for reuse rather than
+        # returning them to the OS.
+        del feat_grid, lstm_grid, features, targets, station_idx, timestamps
+        release_host_memory()
 
         if self.n_valid <= 0:
             raise ValueError(
@@ -473,6 +535,7 @@ def build_dataloaders(
     num_workers: int = 2,
     model_type: Literal["flat", "lstm"] = "flat",
     seq_len: int = LSTM_SEQ_LEN,
+    device: torch.device | None = None,
 ) -> Tuple[DataLoader, DataLoader, DataLoader]:
     """
     Build train / val / test DataLoaders.
@@ -484,6 +547,10 @@ def build_dataloaders(
     num_workers : DataLoader workers
     model_type  : 'flat' for Naive/Linear, 'lstm' for LSTM
     seq_len     : sequence length (LSTM only)
+    device      : LSTM only -- when a CUDA device, LSTMDataset moves its
+                  dense grids there at construction (see LSTMDataset
+                  docstring). Ignored for 'flat' (BikeDataset stays CPU;
+                  Naive/Linear are sklearn-based, no GPU involved).
 
     Returns
     -------
@@ -493,14 +560,18 @@ def build_dataloaders(
     DatasetClass = LSTMDataset if model_type == "lstm" else BikeDataset
 
     def _make(split: str, shuffle: bool) -> DataLoader:
-        kwargs = {"seq_len": seq_len} if model_type == "lstm" else {}
+        kwargs = {"seq_len": seq_len, "device": device} if model_type == "lstm" else {}
         ds = DatasetClass(data_dir, split, **kwargs)
         return DataLoader(
             ds,
             batch_size  = batch_size,
             shuffle     = shuffle,
             num_workers = num_workers,
-            pin_memory  = torch.cuda.is_available(),
+            # pin_memory only pays off when a worker thread/process can copy
+            # into page-locked memory while the GPU is busy; with
+            # num_workers=0 there's no overlap, just extra host memory
+            # pressure held across every batch for no speed benefit.
+            pin_memory  = torch.cuda.is_available() and num_workers > 0,
         )
 
     train_loader = _make("train", shuffle=True)

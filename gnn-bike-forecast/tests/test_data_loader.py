@@ -287,3 +287,43 @@ def test_build_lstm_metadata_matches_dataset_for_train_too(snapshot_dir):
     metadata = _build_lstm_metadata(train_feat, ds)
 
     assert len(metadata["timestamps"]) == len(ds)
+
+
+# ---------------------------------------------------------------------------
+# device parameter (Colab OOM mitigation -- move dense grids onto CUDA)
+# ---------------------------------------------------------------------------
+
+def test_lstm_dataset_defaults_to_cpu_grids(snapshot_dir):
+    ds = LSTMDataset(snapshot_dir, "val", seq_len=_SEQ_LEN)
+    assert ds.lstm_grid.device.type == "cpu"
+    assert ds.target_grid.device.type == "cpu"
+
+
+def test_lstm_dataset_cpu_device_stays_on_cpu(snapshot_dir):
+    ds = LSTMDataset(snapshot_dir, "val", seq_len=_SEQ_LEN, device=torch.device("cpu"))
+    assert ds.lstm_grid.device.type == "cpu"
+    assert ds.target_grid.device.type == "cpu"
+
+
+def test_lstm_dataset_non_cuda_device_is_not_moved(snapshot_dir):
+    # The move-to-device optimization is deliberately CUDA-only (see
+    # LSTMDataset's docstring) -- MPS should behave exactly like the no-device
+    # default, not attempt a .to(device) that MPS's slicing kernels may not
+    # fully support.
+    if not torch.backends.mps.is_available():
+        pytest.skip("MPS not available on this machine")
+    ds = LSTMDataset(snapshot_dir, "val", seq_len=_SEQ_LEN, device=torch.device("mps"))
+    assert ds.lstm_grid.device.type == "cpu"
+    assert ds.target_grid.device.type == "cpu"
+
+
+def test_lstm_dataset_cuda_device_moves_grids(snapshot_dir):
+    if not torch.cuda.is_available():
+        pytest.skip("CUDA not available on this machine")
+    ds = LSTMDataset(snapshot_dir, "val", seq_len=_SEQ_LEN, device=torch.device("cuda"))
+    assert ds.lstm_grid.device.type == "cuda"
+    assert ds.target_grid.device.type == "cuda"
+    # Correctness must be unaffected by where the grid physically lives.
+    x_seq, y = ds[0]
+    assert x_seq.shape == (_SEQ_LEN, len(LSTM_FEATURE_COLS))
+    assert x_seq.device.type == "cuda"

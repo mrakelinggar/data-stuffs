@@ -9,10 +9,12 @@ be importable just to load a parquet file.
 
 from __future__ import annotations
 
+import ctypes
 import functools
 import hashlib
 import json
 import logging
+import platform
 import random
 from pathlib import Path
 
@@ -67,6 +69,27 @@ def get_device() -> torch.device:
     if torch.cuda.is_available():
         return torch.device("cuda")
     return torch.device("cpu")
+
+
+def release_host_memory() -> None:
+    """Force a GC pass and hint glibc to return freed arenas to the OS.
+
+    After a large numpy/pandas allocation is freed, CPython's refcounting
+    drops it immediately, but glibc's malloc often keeps the underlying
+    pages reserved for reuse rather than syscalling them back to the OS --
+    so process RSS can stay elevated even though nothing live references
+    the memory anymore. malloc_trim(0) is the standard way to force that
+    release; it's glibc/Linux-specific, so this is a no-op elsewhere (macOS
+    dev machines, Windows)."""
+    import gc
+    gc.collect()
+
+    if platform.system() != "Linux":
+        return
+    try:
+        ctypes.CDLL("libc.so.6").malloc_trim(0)
+    except OSError:
+        pass
 
 
 # ---------------------------------------------------------------------------
