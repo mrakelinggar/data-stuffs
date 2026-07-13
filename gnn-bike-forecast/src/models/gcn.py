@@ -1,13 +1,13 @@
 """
 gcn.py
 ------
-2-layer GCN for t+24 bike demand forecasting via PyTorch Geometric.
+GCN for t+24 bike demand forecasting via PyTorch Geometric.
 
 Architecture
 ------------
   Input  : (N, 15) node feature matrix per timestamp snapshot
-  GCNConv layer 1 : 15 -> hidden_size, ReLU, Dropout
-  GCNConv layer 2 : hidden_size -> hidden_size, ReLU
+  GCNConv layers  : num_layers (default 2) -- 15 -> hidden_size -> ... -> hidden_size,
+                    ReLU after each, Dropout after all but the last
   FC head          : hidden_size -> 32 -> 1 per node
   Output : (N,) predicted demand per station
 
@@ -49,7 +49,7 @@ import argparse
 import logging
 import time
 from pathlib import Path
-from typing import Literal
+from typing import Callable, Literal
 
 import mlflow
 import numpy as np
@@ -212,26 +212,37 @@ def build_graph_dataset(
 
 class BikeDemanGCN(nn.Module):
     """
-    2-layer GCN + FC head for station-level demand forecasting.
+    GCN (configurable depth, default 2 layers) + FC head for station-level
+    demand forecasting.
 
     Parameters
     ----------
     in_channels  : node feature dimension, driven by len(FEATURE_COLS)
     hidden_size  : GCN hidden dimension
-    dropout      : dropout after first GCN layer
+    num_layers   : number of GCNConv layers (default 2, matches prior
+                   hardcoded architecture exactly)
+    dropout      : dropout applied after every GCN layer except the last
     """
 
     def __init__(
         self,
         in_channels: int   = len(FEATURE_COLS),
         hidden_size: int   = 64,
+        num_layers:  int   = 2,
         dropout:     float = 0.2,
         use_softplus: bool  = False,
     ) -> None:
         super().__init__()
 
-        self.conv1   = GCNConv(in_channels, hidden_size)
-        self.conv2   = GCNConv(hidden_size,  hidden_size)
+        if num_layers < 1:
+            raise ValueError(f"num_layers must be >= 1, got {num_layers}")
+
+        self.convs = nn.ModuleList(
+            [
+                GCNConv(in_channels if i == 0 else hidden_size, hidden_size)
+                for i in range(num_layers)
+            ]
+        )
         self.dropout = dropout
 
         self.head = nn.Sequential(
@@ -258,12 +269,12 @@ class BikeDemanGCN(nn.Module):
         -------
         (N,) predicted demand per node
         """
-        x = self.conv1(x, edge_index, edge_weight)
-        x = F.relu(x)
-        x = F.dropout(x, p=self.dropout, training=self.training)
-
-        x = self.conv2(x, edge_index, edge_weight)
-        x = F.relu(x)
+        n_layers = len(self.convs)
+        for i, conv in enumerate(self.convs):
+            x = conv(x, edge_index, edge_weight)
+            x = F.relu(x)
+            if i < n_layers - 1:
+                x = F.dropout(x, p=self.dropout, training=self.training)
 
         out = self.head(x)          # (N, 1)
         return out.squeeze(-1)      # (N,)
@@ -417,6 +428,7 @@ def run_gcn(
     adj_variant:   Literal["knn", "flow", "combined"] = "knn",
     loss_fn:       Literal["mse", "poisson"] = "poisson",
     hidden_size:   int   = 64,
+    num_layers:    int   = 2,
     dropout:       float = 0.2,
     lr:            float = 1e-3,
     max_epochs:    int   = 50,
@@ -424,7 +436,8 @@ def run_gcn(
     save_dir:      Path  = Path("models"),
     seed:          int   = 42,
     log_to_mlflow: bool  = True,
-) -> None:
+    epoch_callback: Callable[[int, float], None] | None = None,
+) -> float:
     """
     Train a GCN variant and log results to MLflow.
 
@@ -433,13 +446,22 @@ def run_gcn(
     data_dir     : path to data/processed/
     adj_variant  : which adjacency matrix to use ('knn', 'flow', 'combined')
     hidden_size  : GCN hidden dimension
-    dropout      : dropout after first GCN layer
+    num_layers   : number of GCNConv layers (default 2)
+    dropout      : dropout after every GCN layer except the last
     lr           : Adam learning rate
     max_epochs   : maximum training epochs
     patience     : early stopping patience
     save_dir     : directory to save best model checkpoint
     seed         : random seed for reproducibility
     log_to_mlflow: whether to log to MLflow
+    epoch_callback: optional hook called as `epoch_callback(epoch, val_mae)`
+                    at the end of every epoch -- e.g. for Optuna trial
+                    pruning (src/models/tune.py). This module has no
+                    dependency on Optuna; the caller supplies the hook.
+
+    Returns
+    -------
+    best_val_mae : the lowest validation MAE seen across all epochs.
     """
     set_seed(seed)
 
@@ -471,6 +493,7 @@ def run_gcn(
     model = BikeDemanGCN(
         in_channels = in_channels,
         hidden_size = hidden_size,
+        num_layers  = num_layers,
         dropout     = dropout,
         use_softplus = loss_fn != "poisson",
     ).to(device)
@@ -506,6 +529,7 @@ def run_gcn(
             "adj_variant":  adj_variant,
             "loss_fn": loss_fn,
             "hidden_size":  hidden_size,
+            "num_layers":   num_layers,
             "dropout":      dropout,
             "lr":           lr,
             "max_epochs":   max_epochs,
@@ -548,6 +572,9 @@ def run_gcn(
                 },
                 step=epoch,
             )
+
+        if epoch_callback is not None:
+            epoch_callback(epoch, val_mae)
 
         # Early stopping
         if val_mae < best_val_mae:
@@ -636,6 +663,8 @@ def run_gcn(
         f"MAPE={test_result.metrics.mape:.2f}%"
     )
 
+    return best_val_mae
+
 
 # ---------------------------------------------------------------------------
 # Entry point
@@ -650,6 +679,7 @@ def main() -> None:
     )
     parser.add_argument("--loss-fn", choices=["mse", "poisson"], default="poisson", help="Loss function to use (default: poisson)")
     parser.add_argument("--hidden-size", type=int,   default=64)
+    parser.add_argument("--num-layers",  type=int,   default=2)
     parser.add_argument("--dropout",     type=float, default=0.2)
     parser.add_argument("--lr",          type=float, default=1e-3)
     parser.add_argument("--max-epochs",  type=int,   default=50)
@@ -673,6 +703,7 @@ def main() -> None:
             adj_variant   = variant,
             loss_fn       = args.loss_fn,
             hidden_size   = args.hidden_size,
+            num_layers    = args.num_layers,
             dropout       = args.dropout,
             lr            = args.lr,
             max_epochs    = args.max_epochs,

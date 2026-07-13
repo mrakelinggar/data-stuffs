@@ -36,6 +36,7 @@ import argparse
 import logging
 import time
 from pathlib import Path
+from typing import Callable
 
 import mlflow
 import numpy as np
@@ -224,7 +225,8 @@ def run_lstm(
     save_dir:    Path  = Path("models"),
     seed:        int   = 42,
     log_to_mlflow: bool = True,
-) -> None:
+    epoch_callback: Callable[[int, float], None] | None = None,
+) -> float:
     """
     Train the LSTM model and log results to MLflow.
 
@@ -242,6 +244,14 @@ def run_lstm(
     save_dir    : directory to save best model checkpoint
     seed        : random seed for reproducibility
     log_to_mlflow : whether to log to MLflow
+    epoch_callback: optional hook called as `epoch_callback(epoch, val_mae)`
+                    at the end of every epoch -- e.g. for Optuna trial
+                    pruning (src/models/tune.py). This module has no
+                    dependency on Optuna; the caller supplies the hook.
+
+    Returns
+    -------
+    best_val_mae : the lowest validation MAE seen across all epochs.
     """
     set_seed(seed)
 
@@ -385,6 +395,9 @@ def run_lstm(
                 step=epoch,
             )
 
+        if epoch_callback is not None:
+            epoch_callback(epoch, val_mae)
+
         # Early stopping
         if val_mae < best_val_mae:
             best_val_mae   = val_mae
@@ -466,6 +479,8 @@ def run_lstm(
         f"RMSE={metrics_by_split['test'].rmse:.4f}  "
         f"MAPE={metrics_by_split['test'].mape:.2f}%"
     )
+
+    return best_val_mae
 
 
 # ---------------------------------------------------------------------------
