@@ -493,10 +493,11 @@ def run_gcn(
     ckpt_path      = save_dir / f"{run_name}_best.pt"
 
     # --- MLflow setup ---
+    # Run lifecycle (set_experiment/start_run/end_run) is the caller's
+    # responsibility -- see main() below -- so this function can be invoked
+    # either as a standalone top-level run or nested inside an Optuna trial's
+    # own `mlflow.start_run(nested=True)` (Phase 7 tuner).
     if log_to_mlflow:
-        ensure_portable_artifact_location(EXPERIMENT_NAME)
-        mlflow.set_experiment(EXPERIMENT_NAME)
-        mlflow.start_run(run_name=run_name)
         mlflow.set_tag("model_name", run_name)
         mlflow.set_tag("phase", "gcn")
         tag_run_provenance(data_dir, seed)
@@ -617,7 +618,6 @@ def run_gcn(
             log_segment_artifacts_to_mlflow(r, run_name)
 
         mlflow.log_artifact(str(ckpt_path), artifact_path="model")
-        mlflow.end_run()
 
     print(
         f"\n{run_name} | train MAE={train_result.metrics.mae:.4f}  "
@@ -663,8 +663,12 @@ def main() -> None:
 
     variants = ADJ_VARIANTS if args.adj == "all" else (args.adj,)
 
+    if not args.no_mlflow:
+        ensure_portable_artifact_location(EXPERIMENT_NAME)
+        mlflow.set_experiment(EXPERIMENT_NAME)
+
     for variant in variants:
-        run_gcn(
+        run_kwargs = dict(
             data_dir      = args.data_dir,
             adj_variant   = variant,
             loss_fn       = args.loss_fn,
@@ -677,6 +681,11 @@ def main() -> None:
             seed          = args.seed,
             log_to_mlflow = not args.no_mlflow,
         )
+        if args.no_mlflow:
+            run_gcn(**run_kwargs)
+        else:
+            with mlflow.start_run(run_name=f"gcn_{variant}_{args.loss_fn}"):
+                run_gcn(**run_kwargs)
 
 
 if __name__ == "__main__":

@@ -329,10 +329,11 @@ def run_lstm(
     ckpt_path      = save_dir / "lstm_best.pt"
 
     # --- MLflow setup ---
+    # Run lifecycle (set_experiment/start_run/end_run) is the caller's
+    # responsibility -- see main() below -- so this function can be invoked
+    # either as a standalone top-level run or nested inside an Optuna trial's
+    # own `mlflow.start_run(nested=True)` (Phase 7 tuner).
     if log_to_mlflow:
-        ensure_portable_artifact_location(EXPERIMENT_NAME)
-        mlflow.set_experiment(EXPERIMENT_NAME)
-        mlflow.start_run(run_name=f"lstm_{loss_fn}")
         mlflow.set_tag("model_name", "lstm")
         mlflow.set_tag("phase", "lstm")
         tag_run_provenance(data_dir, seed)
@@ -448,7 +449,6 @@ def run_lstm(
 
     if log_to_mlflow:
         mlflow.log_artifact(str(ckpt_path), artifact_path="model")
-        mlflow.end_run()
 
     print(
         f"\nLSTM | train MAE={metrics_by_split['train'].mae:.4f}  "
@@ -552,7 +552,7 @@ def main() -> None:
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s | %(message)s")
 
-    run_lstm(
+    run_kwargs = dict(
         data_dir      = args.data_dir,
         loss_fn       = args.loss_fn,
         hidden_size   = args.hidden_size,
@@ -566,6 +566,14 @@ def main() -> None:
         save_dir      = args.save_dir,
         log_to_mlflow = not args.no_mlflow,
     )
+
+    if args.no_mlflow:
+        run_lstm(**run_kwargs)
+    else:
+        ensure_portable_artifact_location(EXPERIMENT_NAME)
+        mlflow.set_experiment(EXPERIMENT_NAME)
+        with mlflow.start_run(run_name=f"lstm_{args.loss_fn}"):
+            run_lstm(**run_kwargs)
 
 
 if __name__ == "__main__":
