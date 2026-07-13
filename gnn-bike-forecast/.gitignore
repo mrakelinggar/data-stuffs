@@ -1,5 +1,6 @@
 /local-notes/
 mlflow.db
+optuna.db
 GIT_PROVENANCE.json
 /models/
 /reports/
