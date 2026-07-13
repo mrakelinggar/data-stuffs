@@ -11,6 +11,8 @@ significance testing).
 from __future__ import annotations
 
 import json
+import logging
+import sqlite3
 import subprocess
 import tempfile
 from pathlib import Path
@@ -22,12 +24,84 @@ import pandas as pd
 from evaluate import EvalResult
 from utils import get_validated_snapshot_id
 
+logger = logging.getLogger(__name__)
+
 _REPO_DIR = Path(__file__).resolve().parent
 _PROJECT_ROOT = _REPO_DIR.parent.parent
 
 # Fallback for environments that received a code+data bundle instead of a
 # .git checkout (e.g. a remote GPU notebook) -- see write_git_provenance.py.
 _PROVENANCE_FALLBACK_FILE = _PROJECT_ROOT / "GIT_PROVENANCE.json"
+
+
+def ensure_portable_artifact_location(experiment_name: str) -> None:
+    """Repair an experiment's `artifact_location` if it was inherited from a
+    different machine's absolute path.
+
+    MLflow's SqlAlchemyStore bakes the *creating* machine's absolute cwd into
+    `artifact_location` at experiment-creation time. `mlflow.set_experiment()`
+    on an already-existing experiment reuses that stored value verbatim --
+    it does not recompute it for the current machine. Shipping `mlflow.db`
+    wholesale between machines (e.g. local Mac -> a Colab notebook, to keep
+    run lineage continuous) therefore silently redirects every subsequent
+    `mlflow.log_artifact()` call to a path that only exists on whichever
+    machine originally created the experiment. Call this once, before
+    `mlflow.set_experiment(experiment_name)`, from every training entry point.
+
+    The expected location is anchored to `mlflow.db`'s own directory rather
+    than to `Path.cwd()` (which is what MLflow itself uses when assigning a
+    *new* experiment's default artifact root). cwd is not reliable across
+    environments -- a Colab notebook's cwd at training time frequently does
+    not match wherever the copied `mlflow.db` was placed -- whereas the repo
+    convention (`sqlite:///mlflow.db`, run from the project root, so
+    `mlflow.db` and `mlruns/` are always siblings) makes the db's own
+    directory the stable anchor in every environment this project runs in.
+
+    Best-effort: any sqlite error (e.g. a concurrent writer holding the file
+    lock) is logged and swallowed rather than propagated, since this is a
+    repair step, not a precondition -- worst case the run falls back to the
+    pre-fix behavior (artifacts logged to whatever location was already
+    stored) rather than aborting an entire training run over a transient
+    contention error.
+    """
+    tracking_uri = mlflow.get_tracking_uri()
+    if not tracking_uri.startswith("sqlite:///"):
+        return  # only the sqlite backend is known to carry this over
+
+    db_path = Path(tracking_uri.removeprefix("sqlite:///")).resolve()
+    client = mlflow.tracking.MlflowClient()
+    experiment = client.get_experiment_by_name(experiment_name)
+    if experiment is None:
+        return  # not created yet -- mlflow will set a correct location itself
+
+    expected_root = (db_path.parent / "mlruns" / experiment.experiment_id).resolve()
+    expected_uri = expected_root.as_uri()
+    if experiment.artifact_location == expected_uri:
+        return
+
+    logger.warning(
+        "Experiment %r artifact_location %r does not match this machine's "
+        "expected path %r -- likely inherited from a copied mlflow.db. "
+        "Patching in place so new artifacts land locally.",
+        experiment_name, experiment.artifact_location, expected_uri,
+    )
+    try:
+        expected_root.mkdir(parents=True, exist_ok=True)
+        conn = sqlite3.connect(db_path)
+        try:
+            conn.execute(
+                "UPDATE experiments SET artifact_location = ? WHERE experiment_id = ?",
+                (expected_uri, experiment.experiment_id),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+    except (OSError, sqlite3.Error):
+        logger.error(
+            "Failed to patch artifact_location for experiment %r -- "
+            "continuing with the stored (possibly foreign) location.",
+            experiment_name, exc_info=True,
+        )
 
 
 def _run_git(*args: str) -> str:

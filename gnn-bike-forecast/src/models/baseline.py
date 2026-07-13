@@ -42,7 +42,11 @@ from data_loader import (
     build_dataloaders,
 )
 from evaluate import EvalResult, full_evaluation, log_metrics_to_mlflow, reconstruct_cluster_id
-from mlflow_utils import log_segment_artifacts_to_mlflow, tag_run_provenance
+from mlflow_utils import (
+    ensure_portable_artifact_location,
+    log_segment_artifacts_to_mlflow,
+    tag_run_provenance,
+)
 from utils import set_seed
 
 logger = logging.getLogger(__name__)
@@ -309,6 +313,7 @@ def _log_baseline_to_mlflow(
     best_train_* is diagnostic-only (over/underfit gap check) -- never used
     for model selection, early stopping, or leaderboard "best" ranking.
     """
+    ensure_portable_artifact_location(EXPERIMENT_NAME)
     mlflow.set_experiment(EXPERIMENT_NAME)
 
     with mlflow.start_run(run_name=model_name):

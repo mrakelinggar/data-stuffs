@@ -68,7 +68,11 @@ from data_loader import (
     load_adj,
 )
 from evaluate import compute_metrics, full_evaluation, log_metrics_to_mlflow
-from mlflow_utils import log_segment_artifacts_to_mlflow, tag_run_provenance
+from mlflow_utils import (
+    ensure_portable_artifact_location,
+    log_segment_artifacts_to_mlflow,
+    tag_run_provenance,
+)
 from utils import get_device, set_seed
 
 logger = logging.getLogger(__name__)
@@ -490,6 +494,7 @@ def run_gcn(
 
     # --- MLflow setup ---
     if log_to_mlflow:
+        ensure_portable_artifact_location(EXPERIMENT_NAME)
         mlflow.set_experiment(EXPERIMENT_NAME)
         mlflow.start_run(run_name=run_name)
         mlflow.set_tag("model_name", run_name)

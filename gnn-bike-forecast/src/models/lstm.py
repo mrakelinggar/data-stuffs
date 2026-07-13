@@ -47,7 +47,11 @@ from tqdm import tqdm
 
 from data_loader import LSTM_FEATURE_COLS, LSTM_SEQ_LEN, LSTMDataset, build_dataloaders
 from evaluate import full_evaluation, log_metrics_to_mlflow
-from mlflow_utils import log_segment_artifacts_to_mlflow, tag_run_provenance
+from mlflow_utils import (
+    ensure_portable_artifact_location,
+    log_segment_artifacts_to_mlflow,
+    tag_run_provenance,
+)
 from utils import get_device, release_host_memory, set_seed
 
 logger = logging.getLogger(__name__)
@@ -326,6 +330,7 @@ def run_lstm(
 
     # --- MLflow setup ---
     if log_to_mlflow:
+        ensure_portable_artifact_location(EXPERIMENT_NAME)
         mlflow.set_experiment(EXPERIMENT_NAME)
         mlflow.start_run(run_name=f"lstm_{loss_fn}")
         mlflow.set_tag("model_name", "lstm")
