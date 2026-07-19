@@ -16,7 +16,7 @@ import mlflow
 import optuna
 import pytest
 
-from tune import gcn_search_space, lstm_search_space, parse_duration
+from tune import gcn_search_space, hybrid_search_space, lstm_search_space, parse_duration
 
 
 # ---------------------------------------------------------------------------
@@ -64,6 +64,20 @@ def test_gcn_search_space_excludes_norm_scheme():
     assert params["adj_variant"] in ("knn", "flow", "combined")
 
 
+def test_hybrid_search_space_bounds():
+    trial = optuna.create_study().ask()
+    params = hybrid_search_space(trial)
+    # gcn_hidden and lstm_hidden must both be present -- they play different
+    # roles (spatial vs temporal encoder width) and are tuned independently.
+    assert params["gcn_hidden"] in (16, 32, 64)
+    assert params["num_gcn_layers"] in (1, 2)
+    assert params["lstm_hidden"] in (32, 64, 128, 256)
+    assert params["lstm_num_layers"] in (1, 2, 3)
+    assert 0.0 <= params["dropout"] <= 0.5
+    assert 1e-4 <= params["lr"] <= 5e-3
+    assert params["adj_variant"] in ("knn", "flow", "combined")
+
+
 # ---------------------------------------------------------------------------
 # epoch_callback -> TrialPruned wiring
 # ---------------------------------------------------------------------------
@@ -89,8 +103,8 @@ def test_callback_raises_pruned_when_trial_says_so():
 
 def test_train_fn_imports_missing_model_even_if_other_already_populated(monkeypatch):
     # If TRAIN_FNS already has "lstm" (e.g. a prior test's monkeypatch), a
-    # naive `if not TRAIN_FNS:` guard would skip importing "gcn" entirely
-    # and raise a bare KeyError. _train_fn must import per-key instead.
+    # naive `if not TRAIN_FNS:` guard would skip importing "gcn"/"hybrid"
+    # entirely and raise a bare KeyError. _train_fn must import per-key.
     import tune
 
     monkeypatch.setitem(tune.TRAIN_FNS, "lstm", lambda **kwargs: 0.0)
@@ -99,6 +113,17 @@ def test_train_fn_imports_missing_model_even_if_other_already_populated(monkeypa
     train_fn = tune._train_fn("gcn")
     assert train_fn.__name__ == "run_gcn"
     assert "gcn" in tune.TRAIN_FNS
+
+
+def test_train_fn_resolves_hybrid_to_run_hybrid(monkeypatch):
+    import tune
+
+    monkeypatch.setitem(tune.TRAIN_FNS, "lstm", lambda **kwargs: 0.0)
+    monkeypatch.delitem(tune.TRAIN_FNS, "hybrid", raising=False)
+
+    train_fn = tune._train_fn("hybrid")
+    assert train_fn.__name__ == "run_hybrid"
+    assert "hybrid" in tune.TRAIN_FNS
 
 
 # ---------------------------------------------------------------------------

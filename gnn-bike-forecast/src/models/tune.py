@@ -82,9 +82,26 @@ def gcn_search_space(trial: optuna.Trial) -> dict:
     )
 
 
+def hybrid_search_space(trial: optuna.Trial) -> dict:
+    # gcn_hidden is separate from lstm_hidden because they play different
+    # roles (spatial vs temporal encoder width) -- one might benefit while
+    # the other doesn't. num_gcn_layers ∈ {1, 2}: the hybrid does temporal
+    # work too, so it doesn't need to be as graph-deep as a standalone GCN.
+    return dict(
+        gcn_hidden      = trial.suggest_categorical("gcn_hidden", [16, 32, 64]),
+        num_gcn_layers  = trial.suggest_categorical("num_gcn_layers", [1, 2]),
+        lstm_hidden     = trial.suggest_categorical("lstm_hidden", [32, 64, 128, 256]),
+        lstm_num_layers = trial.suggest_int("lstm_num_layers", 1, 3),
+        dropout         = trial.suggest_float("dropout", 0.0, 0.5),
+        lr              = trial.suggest_float("lr", 1e-4, 5e-3, log=True),
+        adj_variant     = trial.suggest_categorical("adj_variant", ["knn", "flow", "combined"]),
+    )
+
+
 SEARCH_SPACES: dict[str, Callable[[optuna.Trial], dict]] = {
-    "lstm": lstm_search_space,
-    "gcn":  gcn_search_space,
+    "lstm":   lstm_search_space,
+    "gcn":    gcn_search_space,
+    "hybrid": hybrid_search_space,
 }
 
 # Populated lazily on first use so importing this module for search-space/
@@ -94,13 +111,15 @@ TRAIN_FNS: dict[str, Callable] = {}
 
 def _train_fn(model_name: str) -> Callable:
     # Checked per-key, not per-dict-emptiness -- a caller (e.g. a test) may
-    # legitimately pre-populate only one of "lstm"/"gcn" via monkeypatching,
-    # and that must not suppress the real import of the other.
+    # legitimately pre-populate only one of "lstm"/"gcn"/"hybrid" via
+    # monkeypatching, and that must not suppress the real import of the others.
     if model_name not in TRAIN_FNS:
         from lstm import run_lstm
         from gcn import run_gcn
-        TRAIN_FNS.setdefault("lstm", run_lstm)
-        TRAIN_FNS.setdefault("gcn", run_gcn)
+        from hybrid import run_hybrid
+        TRAIN_FNS.setdefault("lstm",   run_lstm)
+        TRAIN_FNS.setdefault("gcn",    run_gcn)
+        TRAIN_FNS.setdefault("hybrid", run_hybrid)
     return TRAIN_FNS[model_name]
 
 
@@ -153,7 +172,7 @@ def make_objective(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Optuna hyperparameter sweep")
-    parser.add_argument("--model", choices=["lstm", "gcn"], required=True)
+    parser.add_argument("--model", choices=["lstm", "gcn", "hybrid"], required=True)
     parser.add_argument("--data-dir", type=Path, default=Path("data/processed"))
     parser.add_argument("--n-trials", type=int, default=30)
     parser.add_argument("--timeout", type=str, default=None, help="e.g. '6h', '90m'")

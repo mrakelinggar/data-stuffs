@@ -450,6 +450,192 @@ class LSTMDataset(Dataset):
 
 
 # ---------------------------------------------------------------------------
+# Dataset: STGNN (spatiotemporal hybrid, ROADMAP Phase 8)
+# ---------------------------------------------------------------------------
+
+class STGNNDataset(Dataset):
+    """
+    Sliding-window dataset for the ROADMAP Phase 8 spatiotemporal hybrid
+    (BikeDemandSTGNN: batched-GCN encoder over each of the seq_len timesteps,
+    then per-node LSTM). Each sample is one whole-graph window plus the target
+    vector at its final timestep.
+
+    Each sample:
+        x_window : FloatTensor (seq_len, N, F=22)  -- all-station features
+        y        : FloatTensor (N,)                 -- target_t24 per station
+
+    `__len__` returns `n_valid` (one window per anchor timestep), NOT
+    `n_valid * N` -- the model already emits one prediction per station per
+    window, unlike LSTMDataset where each (station, anchor) pair is its own
+    sample.
+
+    For val/test the preceding split's last `seq_len - 1` timestamps are
+    borrowed as read-only input history (exactly LSTMDataset's borrow
+    contract), so `len(ds) == len(own_unique_timestamps)` for val/test,
+    matching BikeDataset/GCN's per-timestep row count exactly. Train has no
+    preceding split to borrow from, so `len(ds) = T_train - seq_len + 1`
+    (same scoped exception LSTMDataset carries).
+
+    The graph is static within a run: `edge_index` and `edge_weight` are
+    built once from `adj_tensor` and exposed as dataset attributes for the
+    training loop to read once and pass through the model per batch. They
+    never enter `__getitem__` -- no per-window copy.
+
+    `device`: CUDA-only optimization mirroring LSTMDataset. When a CUDA
+    device is passed, `feat_grid`, `target_grid`, `edge_index`, and
+    `edge_weight` are moved there at construction (requires `num_workers=0`
+    on the DataLoader -- see `build_stgnn_dataloaders`). MPS/CPU stay CPU-
+    resident.
+    """
+
+    def __init__(
+        self,
+        data_dir: str | Path,
+        split: Literal["train", "val", "test"],
+        adj_tensor: Tensor,
+        seq_len: int = LSTM_SEQ_LEN,
+        device: torch.device | None = None,
+    ) -> None:
+        data_dir = Path(data_dir)
+        own_features, own_targets, own_station_idx, own_timestamps = _load_split(data_dir, split)
+
+        self.seq_len = seq_len
+
+        borrow_len = seq_len - 1
+        prior_split = _PRIOR_SPLIT.get(split)
+
+        if prior_split is not None and borrow_len > 0:
+            p_features, _, p_station_idx, p_timestamps = _load_split(data_dir, prior_split)
+            p_unique_times = np.sort(np.unique(p_timestamps))
+            tail_times = p_unique_times[-borrow_len:]
+            tail_mask = np.isin(p_timestamps, tail_times)
+
+            # Same station-universe / chronological-order invariants as
+            # LSTMDataset. See LSTMDataset.__init__ for the rationale --
+            # duplicated (not shared) because the two datasets otherwise have
+            # nothing to share (different grid layout, different __len__
+            # semantics), and coupling their init through a helper would
+            # leak abstraction for no gain.
+            own_stations_set = set(np.unique(own_station_idx))
+            prior_tail_stations_set = set(np.unique(p_station_idx[tail_mask]))
+            if not prior_tail_stations_set <= own_stations_set:
+                raise AssertionError(
+                    f"STGNNDataset[{split}]: prior split '{prior_split}' has "
+                    f"stations not present in '{split}': "
+                    f"{sorted(prior_tail_stations_set - own_stations_set)} -- "
+                    "borrowing assumes an identical station universe across "
+                    "splits (see CLAUDE.md's station-universe-stability note)."
+                )
+            if tail_times.max() >= own_timestamps.min():
+                raise AssertionError(
+                    f"STGNNDataset[{split}]: borrowed tail from '{prior_split}' "
+                    f"(max={tail_times.max()}) is not strictly earlier than "
+                    f"'{split}'s own timestamps (min={own_timestamps.min()}) -- "
+                    "splits may overlap or be out of chronological order."
+                )
+
+            features    = np.concatenate([p_features[tail_mask], own_features])
+            station_idx = np.concatenate([p_station_idx[tail_mask], own_station_idx])
+            timestamps  = np.concatenate([p_timestamps[tail_mask], own_timestamps])
+            borrowed_targets = np.zeros(int(tail_mask.sum()), dtype=np.float32)
+            targets = np.concatenate([borrowed_targets, own_targets])
+
+            del p_features, p_station_idx, p_timestamps, tail_mask
+            del p_unique_times, tail_times, borrowed_targets
+            release_host_memory()
+        else:
+            features, targets, station_idx, timestamps = (
+                own_features, own_targets, own_station_idx, own_timestamps,
+            )
+
+        del own_features, own_targets, own_station_idx
+
+        unique_times    = np.sort(np.unique(timestamps))
+        unique_stations = np.sort(np.unique(station_idx))
+        T = len(unique_times)
+        N = len(unique_stations)
+        F = len(FEATURE_COLS)
+
+        logger.info(
+            "STGNNDataset [%s] | T=%d timestamps (borrowed=%d) | N=%d stations | seq_len=%d | F=%d",
+            split, T, T - len(np.unique(own_timestamps)), N, seq_len, F,
+        )
+
+        time_to_t    = {t: i for i, t in enumerate(unique_times)}
+        station_to_n = {s: i for i, s in enumerate(unique_stations)}
+
+        feat_grid   = np.zeros((T, N, F), dtype=np.float32)
+        target_grid = np.zeros((T, N),    dtype=np.float32)
+
+        for row_i in range(len(features)):
+            t_idx = time_to_t[timestamps[row_i]]
+            n_idx = station_to_n[station_idx[row_i]]
+            feat_grid[t_idx, n_idx, :]  = features[row_i]
+            target_grid[t_idx, n_idx]   = targets[row_i]
+
+        feat_grid_t   = torch.from_numpy(feat_grid)     # (T, N, F)
+        target_grid_t = torch.from_numpy(target_grid)   # (T, N)
+
+        # Build shared edge_index once from adjacency. Shape (2, E), (E,).
+        # These are shared across every window -- the whole hybrid rests on
+        # this: the graph is STATIC for the run, so one COO edge_index is
+        # correct for all seq_len timesteps and every window.
+        edge_index, edge_weight = _adj_to_edge_index(adj_tensor)
+
+        if device is not None and device.type == "cuda":
+            feat_grid_t   = feat_grid_t.to(device)
+            target_grid_t = target_grid_t.to(device)
+            edge_index    = edge_index.to(device)
+            edge_weight   = edge_weight.to(device)
+
+        self.feat_grid   = feat_grid_t
+        self.target_grid = target_grid_t
+        self.edge_index  = edge_index
+        self.edge_weight = edge_weight
+        self.T = T
+        self.N = N
+        self.n_valid = T - seq_len + 1
+
+        # Also expose station ordering so downstream code (metadata alignment,
+        # ordering-consistency tests) can check it matches the adjacency
+        # matrix's node ordering.
+        self.station_ids = unique_stations
+
+        del feat_grid, target_grid, features, targets, station_idx, timestamps
+        release_host_memory()
+
+        if self.n_valid <= 0:
+            raise ValueError(
+                f"seq_len={seq_len} >= T={T}; not enough timesteps for split '{split}'"
+            )
+
+        own_T = len(np.unique(own_timestamps))
+        if prior_split is not None and borrow_len > 0 and self.n_valid != own_T:
+            raise AssertionError(
+                f"STGNNDataset[{split}] anchor count {self.n_valid} != expected "
+                f"{own_T} own timestamps -- borrowed prior-split rows may be "
+                "leaking into scored anchors."
+            )
+
+        self.anchor_timestamps = unique_times[seq_len - 1:]
+
+        logger.info(
+            "STGNNDataset [%s] | valid windows=%d | edges=%d",
+            split, self.n_valid, edge_index.shape[1],
+        )
+
+    def __len__(self) -> int:
+        return self.n_valid
+
+    def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor]:
+        # x_window (seq_len, N, F); y (N,). edge_index / edge_weight live on
+        # `self` -- reader (training loop) reads them once, not per-batch.
+        x_window = self.feat_grid[idx : idx + self.seq_len, :, :]
+        y        = self.target_grid[idx + self.seq_len - 1, :]
+        return x_window, y
+
+
+# ---------------------------------------------------------------------------
 # Graph data: GCN snapshots (one PyG Data object per timestamp)
 # ---------------------------------------------------------------------------
 
@@ -571,6 +757,54 @@ def build_dataloaders(
             # into page-locked memory while the GPU is busy; with
             # num_workers=0 there's no overlap, just extra host memory
             # pressure held across every batch for no speed benefit.
+            pin_memory  = torch.cuda.is_available() and num_workers > 0,
+        )
+
+    train_loader = _make("train", shuffle=True)
+    val_loader   = _make("val",   shuffle=False)
+    test_loader  = _make("test",  shuffle=False)
+
+    return train_loader, val_loader, test_loader
+
+
+def build_stgnn_dataloaders(
+    data_dir: str | Path,
+    adj_tensor: Tensor,
+    batch_size: int = 4,
+    num_workers: int = 0,
+    seq_len: int = LSTM_SEQ_LEN,
+    device: torch.device | None = None,
+) -> Tuple[DataLoader, DataLoader, DataLoader]:
+    """
+    Build train / val / test DataLoaders for the STGNN hybrid (Phase 8).
+
+    Separate from build_dataloaders because STGNN requires an `adj_tensor` --
+    that parameter is meaningless for flat/lstm and would just bloat the
+    signature. Default `batch_size=4` reflects the T4 VRAM budget described
+    in ROADMAP Phase 8; the training script can override.
+
+    `num_workers` is silently forced to 0 whenever the dataset is CUDA-
+    resident (via `device`), since CUDA tensors cannot cross a forked
+    DataLoader worker process. Caller can pass num_workers > 0 for CPU-
+    resident use.
+    """
+    data_dir = Path(data_dir)
+
+    if device is not None and device.type == "cuda" and num_workers > 0:
+        logger.warning(
+            "build_stgnn_dataloaders: forcing num_workers=0 -- STGNNDataset "
+            "grids are CUDA-resident on this device, and CUDA tensors cannot "
+            "cross a forked DataLoader worker."
+        )
+        num_workers = 0
+
+    def _make(split: str, shuffle: bool) -> DataLoader:
+        ds = STGNNDataset(data_dir, split, adj_tensor, seq_len=seq_len, device=device)
+        return DataLoader(
+            ds,
+            batch_size  = batch_size,
+            shuffle     = shuffle,
+            num_workers = num_workers,
             pin_memory  = torch.cuda.is_available() and num_workers > 0,
         )
 

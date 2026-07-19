@@ -15,12 +15,15 @@ import numpy as np
 import torch
 import torch.nn as nn
 
+from data_loader import FEATURE_COLS
 from gcn import BikeDemanGCN
+from hybrid import BikeDemandSTGNN
 from lstm import BikeDemanLSTM
 
 _MODEL_SRC_FILES = [
     Path(__file__).resolve().parents[1] / "src" / "models" / "lstm.py",
     Path(__file__).resolve().parents[1] / "src" / "models" / "gcn.py",
+    Path(__file__).resolve().parents[1] / "src" / "models" / "hybrid.py",  # ROADMAP Phase 8
 ]
 
 
@@ -54,6 +57,22 @@ def test_gcn_poisson_head_is_identity():
 
 def test_gcn_mse_head_is_softplus():
     model = BikeDemanGCN(in_channels=15, use_softplus=_use_softplus_for("mse"))
+    assert isinstance(model.head[-1], nn.Softplus)
+
+
+def test_hybrid_poisson_head_is_identity():
+    model = BikeDemandSTGNN(
+        in_channels=len(FEATURE_COLS),
+        use_softplus=_use_softplus_for("poisson"),
+    )
+    assert isinstance(model.head[-1], nn.Identity)
+
+
+def test_hybrid_mse_head_is_softplus():
+    model = BikeDemandSTGNN(
+        in_channels=len(FEATURE_COLS),
+        use_softplus=_use_softplus_for("mse"),
+    )
     assert isinstance(model.head[-1], nn.Softplus)
 
 
