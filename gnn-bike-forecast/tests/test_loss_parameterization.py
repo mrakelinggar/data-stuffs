@@ -60,8 +60,14 @@ def test_gcn_mse_head_is_softplus():
     assert isinstance(model.head[-1], nn.Softplus)
 
 
+def _tiny_hybrid_adj(n: int = 4) -> torch.Tensor:
+    """Minimal normalised adjacency for head-type tests (no graph-correctness needed)."""
+    return torch.eye(n)
+
+
 def test_hybrid_poisson_head_is_identity():
     model = BikeDemandSTGNN(
+        adj_norm=_tiny_hybrid_adj(),
         in_channels=len(FEATURE_COLS),
         use_softplus=_use_softplus_for("poisson"),
     )
@@ -70,6 +76,7 @@ def test_hybrid_poisson_head_is_identity():
 
 def test_hybrid_mse_head_is_softplus():
     model = BikeDemandSTGNN(
+        adj_norm=_tiny_hybrid_adj(),
         in_channels=len(FEATURE_COLS),
         use_softplus=_use_softplus_for("mse"),
     )

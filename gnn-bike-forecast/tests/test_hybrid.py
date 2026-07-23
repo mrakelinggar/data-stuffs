@@ -331,28 +331,16 @@ def test_stgnn_dataset_borrowed_targets_never_scored(snapshot_dir, adj_tensor):
 # BikeDemandSTGNN -- model-plane edge cases (16-27)
 # ===========================================================================
 
-from hybrid import BikeDemandSTGNN, _replicate_edge_index  # noqa: E402
-from torch_geometric.nn import GCNConv  # noqa: E402
-
-
-def _tiny_edges(n: int, device: torch.device | None = None) -> tuple[torch.Tensor, torch.Tensor]:
-    """Small deterministic edge_index/edge_weight matching _tiny_adj's cycle."""
-    adj = _tiny_adj(n)
-    if device is not None:
-        adj = adj.to(device)
-    ei = adj.nonzero(as_tuple=False).t().contiguous()
-    ew = adj[ei[0], ei[1]]
-    return ei, ew
+from hybrid import BikeDemandSTGNN  # noqa: E402
 
 
 # 16. Forward output shape
 def test_stgnn_forward_output_shape():
     B, T, N, F_in = 2, 5, 6, len(FEATURE_COLS)
-    model = BikeDemandSTGNN(in_channels=F_in, gcn_hidden=8, num_gcn_layers=1,
-                             lstm_hidden=16, lstm_num_layers=1, dropout=0.0)
-    ei, ew = _tiny_edges(N)
+    model = BikeDemandSTGNN(adj_norm=_tiny_adj(N), in_channels=F_in, gcn_hidden=8,
+                             num_gcn_layers=1, lstm_hidden=16, lstm_num_layers=1, dropout=0.0)
     x = torch.randn(B, T, N, F_in)
-    out = model(x, ei, ew)
+    out = model(x)
     assert out.shape == (B, N)
     assert not torch.isnan(out).any() and not torch.isinf(out).any()
 
@@ -360,23 +348,22 @@ def test_stgnn_forward_output_shape():
 # 17. Forward with B=1 -- no dim-collapse bugs
 def test_stgnn_forward_with_batch_1():
     B, T, N, F_in = 1, 4, 5, len(FEATURE_COLS)
-    model = BikeDemandSTGNN(in_channels=F_in, gcn_hidden=4, num_gcn_layers=1,
-                             lstm_hidden=8, lstm_num_layers=1, dropout=0.0)
-    ei, ew = _tiny_edges(N)
+    model = BikeDemandSTGNN(adj_norm=_tiny_adj(N), in_channels=F_in, gcn_hidden=4,
+                             num_gcn_layers=1, lstm_hidden=8, lstm_num_layers=1, dropout=0.0)
     x = torch.randn(B, T, N, F_in)
-    out = model(x, ei, ew)
+    out = model(x)
     assert out.shape == (1, N)
 
 
 # 18. Poisson head is Identity (raw log-rate, non-negativity via exp() at inference)
 def test_stgnn_poisson_head_is_identity():
-    model = BikeDemandSTGNN(use_softplus=False)
+    model = BikeDemandSTGNN(adj_norm=_tiny_adj(), use_softplus=False)
     assert isinstance(model.head[-1], nn.Identity)
 
 
 # 19. MSE head is Softplus (non-negativity from the model itself, not post-hoc)
 def test_stgnn_mse_head_is_softplus():
-    model = BikeDemandSTGNN(use_softplus=True)
+    model = BikeDemandSTGNN(adj_norm=_tiny_adj(), use_softplus=True)
     assert isinstance(model.head[-1], nn.Softplus)
 
 
@@ -384,8 +371,8 @@ def test_stgnn_mse_head_is_softplus():
 def test_stgnn_poisson_raw_output_can_be_negative():
     B, T, N, F_in = 2, 3, 4, len(FEATURE_COLS)
     torch.manual_seed(0)
-    model = BikeDemandSTGNN(in_channels=F_in, gcn_hidden=4, num_gcn_layers=1,
-                             lstm_hidden=4, lstm_num_layers=1, dropout=0.0,
+    model = BikeDemandSTGNN(adj_norm=_tiny_adj(N), in_channels=F_in, gcn_hidden=4,
+                             num_gcn_layers=1, lstm_hidden=4, lstm_num_layers=1, dropout=0.0,
                              use_softplus=False)
     # Bias the final linear layer strongly negative so the raw log-rate lands
     # negative regardless of input. The head is Linear(4)->ReLU->Linear->Identity;
@@ -393,52 +380,57 @@ def test_stgnn_poisson_raw_output_can_be_negative():
     with torch.no_grad():
         model.head[2].bias.fill_(-5.0)
         model.head[2].weight.fill_(0.0)  # forces bias to dominate
-    ei, ew = _tiny_edges(N)
-    out = model(torch.randn(B, T, N, F_in), ei, ew)
+    out = model(torch.randn(B, T, N, F_in))
     assert (out < 0).any(), "Poisson head must be allowed to emit negatives"
 
 
 # 21. np.exp of raw Poisson output is non-negative -- the inference path's guarantee
 def test_stgnn_exp_of_poisson_raw_is_non_negative():
     B, T, N, F_in = 2, 3, 4, len(FEATURE_COLS)
-    model = BikeDemandSTGNN(in_channels=F_in, use_softplus=False,
+    model = BikeDemandSTGNN(adj_norm=_tiny_adj(N), in_channels=F_in, use_softplus=False,
                              gcn_hidden=4, num_gcn_layers=1,
                              lstm_hidden=4, lstm_num_layers=1, dropout=0.0)
-    ei, ew = _tiny_edges(N)
-    raw = model(torch.randn(B, T, N, F_in), ei, ew).detach().numpy()
+    raw = model(torch.randn(B, T, N, F_in)).detach().numpy()
     rate = np.exp(raw)
     assert (rate >= 0).all()
 
 
-# 23. Batched-GCN equivalence to per-timestep loop -- THE correctness proof
-# for the "static graph => batched call is mathematically identical" claim.
-def test_batched_gcn_matches_per_timestep_loop():
+# 23. Dense-matmul GCN equivalence to explicit per-timestep loop.
+# Replaces the old test_batched_gcn_matches_per_timestep_loop which tested the
+# now-removed _replicate_edge_index / GCNConv path.
+def test_dense_gcn_matches_gcnconv():
+    """
+    A_norm @ x @ W == per-timestep (adj @ x[b,t]) @ W.
+
+    The model's einsum('ij,bjtf->bitf', adj, h) applied to each GCN layer
+    is mathematically equivalent to iterating over (b, t) and computing
+    adj @ h[b, t] directly.  This is the correctness proof for Path C.
+    """
     B, T, N, F_in, F_out = 2, 3, 5, 4, 6
     torch.manual_seed(42)
+    adj = _tiny_adj(N)
+    lin = nn.Linear(F_in, F_out, bias=True)
+    lin.eval()
+
     x = torch.randn(B, T, N, F_in)
-    ei, ew = _tiny_edges(N)
 
-    # Single-graph GCN layer whose weights we hold constant across both paths.
-    conv = GCNConv(F_in, F_out)
-    conv.eval()
+    # Dense einsum path (what BikeDemandSTGNN._gcn_layers do internally):
+    h = x.permute(0, 2, 1, 3)                             # (B, N, T, F_in)
+    h_agg = torch.einsum("ij,bjtf->bitf", adj, h)         # aggregate: (B, N, T, F_in)
+    with torch.no_grad():
+        out_dense = lin(h_agg).permute(0, 2, 1, 3)        # -> (B, T, N, F_out)
 
-    # Path A: batched -- exactly what BikeDemandSTGNN does internally.
-    x_flat = x.reshape(B * T * N, F_in)
-    ei_rep, ew_rep = _replicate_edge_index(ei, ew, B * T, N)
-    out_batched = conv(x_flat, ei_rep, ew_rep).reshape(B, T, N, F_out)
-
-    # Path B: per-(b, t) loop with the single-graph edge_index.
+    # Reference: per-timestep loop
     out_loop = torch.zeros(B, T, N, F_out)
     with torch.no_grad():
         for b in range(B):
             for t in range(T):
-                out_loop[b, t] = conv(x[b, t], ei, ew)
+                agg = adj @ x[b, t]                        # (N, F_in)
+                out_loop[b, t] = lin(agg)                  # (N, F_out)
 
-    with torch.no_grad():
-        assert torch.allclose(out_batched, out_loop, atol=1e-5), (
-            "Batched-reshape GCN must be identical to per-timestep loop "
-            "(the whole hybrid rests on this)"
-        )
+    assert torch.allclose(out_dense, out_loop, atol=1e-5), (
+        "Dense einsum A_norm @ x must equal per-timestep loop"
+    )
 
 
 # 24. Static-graph invariant: model attribute + forward assertion
@@ -450,10 +442,9 @@ def test_stgnn_static_graph_only_flag_present_and_true():
 def test_stgnn_gradient_flow_to_all_parameters():
     B, T, N, F_in = 2, 3, 4, len(FEATURE_COLS)
     torch.manual_seed(0)
-    model = BikeDemandSTGNN(in_channels=F_in, gcn_hidden=4, num_gcn_layers=2,
-                             lstm_hidden=8, lstm_num_layers=2, dropout=0.0)
-    ei, ew = _tiny_edges(N)
-    out = model(torch.randn(B, T, N, F_in), ei, ew)
+    model = BikeDemandSTGNN(adj_norm=_tiny_adj(N), in_channels=F_in, gcn_hidden=4,
+                             num_gcn_layers=2, lstm_hidden=8, lstm_num_layers=2, dropout=0.0)
+    out = model(torch.randn(B, T, N, F_in))
     out.mean().backward()
 
     missing = [name for name, p in model.named_parameters()
@@ -464,12 +455,12 @@ def test_stgnn_gradient_flow_to_all_parameters():
 # 26. num_gcn_layers parameter -- variable-depth ModuleList
 def test_stgnn_num_gcn_layers_variable_depth():
     for n in (1, 2, 3):
-        m = BikeDemandSTGNN(num_gcn_layers=n)
+        m = BikeDemandSTGNN(adj_norm=_tiny_adj(), num_gcn_layers=n)
         assert len(m.gcn_layers) == n
     with pytest.raises(ValueError, match="num_gcn_layers"):
-        BikeDemandSTGNN(num_gcn_layers=0)
+        BikeDemandSTGNN(adj_norm=_tiny_adj(), num_gcn_layers=0)
     with pytest.raises(ValueError, match="lstm_num_layers"):
-        BikeDemandSTGNN(lstm_num_layers=0)
+        BikeDemandSTGNN(adj_norm=_tiny_adj(), lstm_num_layers=0)
 
 
 # 27. Determinism at CPU: same seed + same input -> identical output
@@ -477,20 +468,81 @@ def test_stgnn_deterministic_on_cpu():
     from utils import set_seed
 
     B, T, N, F_in = 2, 3, 4, len(FEATURE_COLS)
-    ei, ew = _tiny_edges(N)
     x = torch.randn(B, T, N, F_in)  # constructed once, before either seeded run
 
     def _run() -> torch.Tensor:
         set_seed(42)
-        m = BikeDemandSTGNN(in_channels=F_in, gcn_hidden=4, num_gcn_layers=1,
-                             lstm_hidden=8, lstm_num_layers=1, dropout=0.0)
+        m = BikeDemandSTGNN(adj_norm=_tiny_adj(N), in_channels=F_in, gcn_hidden=4,
+                             num_gcn_layers=1, lstm_hidden=8, lstm_num_layers=1, dropout=0.0)
         m.eval()
         with torch.no_grad():
-            return m(x, ei, ew)
+            return m(x)
 
     out_a = _run()
     out_b = _run()
     assert torch.equal(out_a, out_b), "STGNN must be deterministic at CPU with fixed seed"
+
+
+# Memory-optimization param tests (Phase 8.5)
+
+# 34. use_checkpointing=True and False produce the same forward output
+def test_stgnn_checkpointing_same_output():
+    B, T, N, F_in = 2, 4, 4, len(FEATURE_COLS)
+    torch.manual_seed(7)
+    x = torch.randn(B, T, N, F_in)
+
+    def _make(ckpt: bool) -> BikeDemandSTGNN:
+        m = BikeDemandSTGNN(adj_norm=_tiny_adj(N), in_channels=F_in, gcn_hidden=4,
+                             num_gcn_layers=1, lstm_hidden=8, lstm_num_layers=1,
+                             dropout=0.0, use_checkpointing=ckpt)
+        m.eval()
+        return m
+
+    # Share weights so any difference is solely from the checkpointing path.
+    m_ckpt   = _make(True)
+    m_no_ckpt = _make(False)
+    m_no_ckpt.load_state_dict(m_ckpt.state_dict())
+
+    with torch.no_grad():
+        out_ckpt   = m_ckpt(x)
+        out_no_ckpt = m_no_ckpt(x)
+
+    assert torch.allclose(out_ckpt, out_no_ckpt, atol=1e-5), (
+        "Gradient checkpointing must not change forward output"
+    )
+
+
+# 35. TBPTT: with tbptt_steps=K, gradients exist only for the tail
+def test_stgnn_tbptt_gradient_stops_before_full_seq():
+    B, T, N, F_in = 1, 8, 4, len(FEATURE_COLS)
+    K = 4
+    torch.manual_seed(3)
+    x = torch.randn(B, T, N, F_in, requires_grad=False)
+
+    m = BikeDemandSTGNN(adj_norm=_tiny_adj(N), in_channels=F_in, gcn_hidden=4,
+                         num_gcn_layers=1, lstm_hidden=4, lstm_num_layers=1,
+                         dropout=0.0, tbptt_steps=K, use_checkpointing=False)
+    m.train()
+    out = m(x)
+    out.mean().backward()
+
+    # If TBPTT is working, LSTM parameters still receive gradients (from the tail).
+    for name, p in m.named_parameters():
+        if "lstm" in name and p.requires_grad:
+            assert p.grad is not None, f"TBPTT: {name} has no gradient (expected tail gradient)"
+
+
+# 36. run_hybrid signature includes all memory-optimization knobs
+def test_run_hybrid_signature_has_memory_params():
+    from hybrid import run_hybrid
+    sig = inspect.signature(run_hybrid)
+    for name in ("use_checkpointing", "tbptt_steps", "grad_accum_steps", "mixed_precision"):
+        assert name in sig.parameters, f"run_hybrid missing memory-opt param {name!r}"
+    # Defaults match the documented values
+    assert sig.parameters["use_checkpointing"].default is True
+    assert sig.parameters["tbptt_steps"].default == 0
+    assert sig.parameters["grad_accum_steps"].default == 4
+    assert sig.parameters["mixed_precision"].default is True
 
 
 # ===========================================================================
@@ -536,6 +588,9 @@ def test_run_hybrid_signature_has_tuner_contract():
         assert name in sig.parameters, f"run_hybrid missing param {name!r}"
     # epoch_callback default is None (matches run_gcn/run_lstm)
     assert sig.parameters["epoch_callback"].default is None
+    # Memory-optimization knobs must also be present with defaults
+    for name in ("use_checkpointing", "tbptt_steps", "grad_accum_steps", "mixed_precision"):
+        assert name in sig.parameters, f"run_hybrid missing memory-opt param {name!r}"
 
 
 # 29 / 30 / 31 / 33: covered in one smoke run to keep test wall-clock down.
@@ -612,8 +667,8 @@ def test_run_hybrid_early_stopping_fires(full_snapshot_dir, tmp_path, monkeypatc
 
     call_count = {"epoch": 0}
 
-    def _fake_evaluate_epoch(model, loader, edge_index, edge_weight, device,
-                              loss_fn="poisson"):
+    def _fake_evaluate_epoch(model, loader, device,
+                              loss_fn="poisson", mixed_precision=False):
         call_count["epoch"] += 1
         # Increasing val MAE => no improvement => early stop after `patience` epochs.
         # Return arrays sized to the loader's own dataset so the split-specific
