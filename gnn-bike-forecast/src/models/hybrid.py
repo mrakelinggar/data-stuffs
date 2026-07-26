@@ -155,11 +155,23 @@ class BikeDemandSTGNN(nn.Module):
         # adj_norm: registered buffer -- moves with .to(device), never updated.
         # Dense (N, N) float32 = 14.6 MB at N=1911, vs ~10 GB replicated edge_index
         # for flow/combined adjacency (see docstring).
-        self.register_buffer("adj_norm", adj_norm.float())
+        #
+        # Add self-loops before registering: the stored adj_*_norm matrices are
+        # D^{-1}A (no self-loops), but GCNConv in gcn.py uses add_self_loops=True
+        # (Kipf & Welling 2017: D^{-1/2}(A+I)D^{-1/2}).  Without self-loops each
+        # node's post-GCN representation is a pure neighbour average -- the node's
+        # own features get zero weight.  For adj_flow_norm (avg degree ~470) this
+        # collapses every station to a near-uniform mixture of 470 others, wiping
+        # out station identity before the LSTM can learn anything per-station.
+        adj_f = adj_norm.float()
+        N = adj_f.shape[0]
+        adj_f = adj_f + torch.eye(N, dtype=adj_f.dtype)
+        row_sum = adj_f.sum(dim=1, keepdim=True).clamp(min=1e-8)
+        self.register_buffer("adj_norm", adj_f / row_sum)
 
         # Dense linear layers replace GCNConv -- A_norm @ X @ W is mathematically
-        # equivalent to GCNConv(X, edge_index) when adj_norm already encodes the
-        # normalised adjacency (proved in test_dense_gcn_matches_gcnconv).
+        # equivalent to GCNConv(X, edge_index) when adj_norm encodes the normalised
+        # adjacency *with self-loops* (which the block above now ensures).
         self.gcn_layers = nn.ModuleList(
             [
                 nn.Linear(in_channels if i == 0 else gcn_hidden, gcn_hidden)
